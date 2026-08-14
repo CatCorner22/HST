@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Gonzo Style Engine</title>
+<link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+<header>
+  <h1>Gonzo Style Engine</h1>
+  <p class="sub">A prose engine in the gonzo tradition. Original narrator &mdash; not an impersonation.</p>
+</header>
+
+<nav class="tabs" role="tablist">
+  <button class="tab active" data-panel="chat" role="tab">Chat</button>
+  <button class="tab" data-panel="compose" role="tab">Compose</button>
+  <button class="tab" data-panel="transfer" role="tab">Transfer</button>
+  <button class="tab" data-panel="score" role="tab">Score</button>
+</nav>
+
+<main>
+  <!-- Chat -->
+  <section id="chat" class="panel active">
+    <div id="transcript" class="transcript" aria-live="polite"></div>
+    <form id="chat-form" class="composer">
+      <textarea id="chat-input" rows="2" placeholder="Say something. Ask for a take. Ask who it is."></textarea>
+      <div class="row">
+        <button type="submit" class="primary">Send</button>
+        <button type="button" id="chat-reset">Reset</button>
+        <span id="chat-directive" class="directive"></span>
+      </div>
+    </form>
+  </section>
+
+  <!-- Compose -->
+  <section id="compose" class="panel">
+    <label for="compose-input">Assignment</label>
+    <textarea id="compose-input" rows="3" placeholder="the county zoning board meeting"></textarea>
+    <div class="row">
+      <button id="compose-go" class="primary">File the piece</button>
+      <label class="inline"><input type="checkbox" id="compose-judge" checked> rubric judge</label>
+      <label class="inline"><input type="checkbox" id="compose-revise" checked> revise until it passes</label>
+      <label class="inline">seed <input type="number" id="compose-seed" placeholder="auto"></label>
+    </div>
+    <div id="compose-out" class="output"></div>
+  </section>
+
+  <!-- Transfer -->
+  <section id="transfer" class="panel">
+    <label for="transfer-input">Your text &mdash; facts and figures are preserved</label>
+    <textarea id="transfer-input" rows="10" placeholder="Paste flat prose here."></textarea>
+    <div class="row">
+      <button id="transfer-go" class="primary">Restyle</button>
+      <label class="inline">seed <input type="number" id="transfer-seed" placeholder="auto"></label>
+    </div>
+    <div id="transfer-out" class="output"></div>
+  </section>
+
+  <!-- Score -->
+  <section id="score" class="panel">
+    <label for="score-input">Passage to score</label>
+    <textarea id="score-input" rows="12" placeholder="Paste any prose &mdash; this engine's or your own."></textarea>
+    <div class="row">
+      <button id="score-go" class="primary">Score it</button>
+      <label class="inline"><input type="checkbox" id="score-judge" checked> rubric judge (uses the API)</label>
+    </div>
+    <div id="score-out" class="output"></div>
+  </section>
+</main>
+
+<script src="/static/app.js"></script>
+</body>
+</html>

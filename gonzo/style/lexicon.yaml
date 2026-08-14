@@ -1,0 +1,102 @@
+# Machine-readable style data. Read by BOTH the Variance Director (to build
+# per-request directives) and the scorer (to measure output). One source of
+# truth so the prompt and the metrics can never drift apart.
+
+# ---------------------------------------------------------------------------
+# Register bands. `cues` are scoring heuristics, not vocabulary to inject.
+# ---------------------------------------------------------------------------
+bands:
+  savage:
+    brief: "Invective and indictment. Bestial imagery for the powerful, apocalyptic framing, aimed name-calling."
+    cues: [beast, swine, brute, jackal, hyena, reptile, vermin, carrion, rot, stench,
+           doomed, monstrous, savage, brutal, atavistic, degenerate, filth, plague,
+           corrupt, venal, grotesque, wretched]
+    target_share: [0.15, 0.45]
+
+  clinical:
+    brief: "Flat declarative. Receipts, inventory, itemized fact. Deliberately affectless."
+    cues: [total, cost, receipt, invoice, room, mile, gallon, ounce, hour, minute,
+           exactly, precisely, listed, according, recorded, filed, dated, per]
+    target_share: [0.15, 0.40]
+
+  manic:
+    brief: "Accelerating. Escalating absurdity and paranoia, the situation getting away in real time."
+    cues: [suddenly, screaming, careening, lurching, spinning, frantic, berserk,
+           howling, wild, seized, exploded, panic, chaos, blur, faster, hurtling]
+    target_share: [0.10, 0.40]
+
+  elegiac:
+    brief: "Sedate, honest, unadorned. Short plain sentences, real mourning, no jokes. Mandatory in long-form."
+    # Explicit temporal-rupture markers only. Two rounds of calibration cut
+    # this list down:
+    #   - bare past tense ("was", "were") fires on any administrative prose
+    #   - single polysemous words fire on unrelated senses: "never ONCE cited",
+    #     "has LOST this vote" are not mourning anything
+    # What survives is mostly phrasal, because in English the elegiac register
+    # is marked by a construction rather than by vocabulary.
+    cues: [no longer, used to, back then, years ago, years later, the last time,
+           what was left, never came back, long gone, never again, is dead,
+           was dead, dead now, all of it gone, that was the end, before all this,
+           in those days, at the time, remember when, none of it left]
+    target_share: [0.08, 0.30]
+
+# ---------------------------------------------------------------------------
+# Anti-pastiche budget. Overuse of these is the single clearest tell of a fake.
+# ---------------------------------------------------------------------------
+tics:
+  budget_per_500_words: 3
+  max_per_sentence: 1
+  words:
+    - swine
+    - doomed
+    - savage
+    - atavistic
+    - brutal
+    - monstrous
+    - fear and loathing
+    - gonzo
+    - depraved
+    - decadent
+    - bad craziness
+    - "the whole thing"
+    - vicious
+    - degenerate
+
+# ---------------------------------------------------------------------------
+# Imagery domains. The Variance Director assigns one per request so successive
+# generations don't all reach for the same well.
+# ---------------------------------------------------------------------------
+imagery_domains:
+  - name: animal
+    brief: "Bestial. Predators, vermin, livestock, things that circle and feed."
+  - name: machinery
+    brief: "Engines, gears, hydraulics, things seizing and stripping their threads."
+  - name: weather
+    brief: "Fronts, pressure, heat, the sky as omen and verdict."
+  - name: medicine
+    brief: "Diagnosis, infection, surgery, the body failing in specific clinical ways."
+  - name: law
+    brief: "Statute, evidence, testimony, the machinery of enforcement and its abuses."
+  - name: gambling
+    brief: "Odds, house edge, the mark, the long shot, money changing hands."
+  - name: religion
+    brief: "Old Testament judgment, congregation, sin and reckoning, King James cadence."
+  - name: geology
+    brief: "Strata, pressure, fault lines, slow accumulation and sudden collapse."
+
+# ---------------------------------------------------------------------------
+# Opening moves. Never the same two runs in a row for the same seed family.
+# ---------------------------------------------------------------------------
+opening_moves:
+  - name: cold_open
+    brief: "Drop into the middle of a scene already in progress. No setup, no throat-clearing."
+  - name: direct_address
+    brief: "Speak to the reader as a co-conspirator who already suspects what you're about to confirm."
+  - name: inventory
+    brief: "Open Clinical — an itemized list of what was on hand, what it cost, what time it was."
+  - name: omen
+    brief: "Open on weather, light, or an atmospheric detail read as a verdict on what follows."
+  - name: flat_verdict
+    brief: "Open with a short, flat, unarguable declarative sentence, then take it apart."
+  - name: displacement
+    brief: "Open somewhere else entirely — a memory or unrelated scene that only pays off later."
