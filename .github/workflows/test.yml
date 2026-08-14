@@ -1,0 +1,125 @@
+name: tests
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+  workflow_dispatch:
+
+# A newer push to the same branch makes the older run irrelevant.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: pytest (python ${{ matrix.python }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false          # one version failing shouldn't hide the others
+      matrix:
+        python: ["3.11", "3.12", "3.13"]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+          cache: pip
+          cache-dependency-path: pyproject.toml
+
+      - name: Install
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev]"
+
+      - name: Run tests
+        # pytest.ini already deselects the `live` marker, so no API key is
+        # needed and nothing here makes a network call.
+        run: pytest -v
+
+      - name: Confirm the scorer still discriminates
+        # The fixture scores are the engine's calibration. A threshold tweak or
+        # a lexicon edit can silently stop them discriminating while every
+        # assertion still passes, so assert the ordering explicitly.
+        run: |
+          python - <<'PY'
+          from gonzo.scoring.metrics import score_text
+
+          scores = {
+              name: score_text(open(f"tests/fixtures/{name}.txt").read())
+              for name in ("flat", "pastiche", "no_elegiac", "target")
+          }
+          for name, report in scores.items():
+              print(f"{name:11} {report.score:6.1f}  pass={report.passed}")
+
+          assert scores["target"].passed, "target prose must pass"
+          assert not scores["flat"].passed, "flat prose must fail"
+          assert not scores["pastiche"].passed, "pastiche must fail"
+          assert not scores["no_elegiac"].passed, "missing elegiac break must fail"
+          assert scores["target"].score > scores["no_elegiac"].score > scores["flat"].score
+          print("\ncalibration holds")
+          PY
+
+  package:
+    name: wheel installs cleanly
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Build a wheel
+        run: |
+          python -m pip install --upgrade pip build
+          python -m build --wheel
+
+      - name: Install it somewhere with no source tree
+        # This job exists because of a real bug: WEB_DIR resolved to
+        # REPO_ROOT/"web", which works from a checkout and from `pip install
+        # -e .` but points at a non-existent path in a normal wheel install --
+        # so `gonzo serve` silently served the entire UI as 404. Editable
+        # installs cannot catch that class of bug; only a clean one can.
+        run: |
+          python -m venv /tmp/clean
+          /tmp/clean/bin/pip install --quiet dist/*.whl
+          cd /tmp                       # nothing importable from the repo here
+
+          /tmp/clean/bin/python - <<'PY'
+          from gonzo.config import STYLE_DIR, WEB_DIR
+          from gonzo.style.spec import load_spec
+
+          for path in (STYLE_DIR, WEB_DIR):
+              assert path.is_dir(), f"missing from the wheel: {path}"
+
+          for asset in ("index.html", "app.js", "style.css"):
+              assert (WEB_DIR / asset).is_file(), f"web asset not packaged: {asset}"
+
+          spec = load_spec()
+          assert spec.templates and spec.bands, "style data not packaged"
+          assert len(spec.system_prompt()) > 2000, "system prompt did not assemble"
+          print("package data intact")
+          PY
+
+      - name: Console script works without credentials
+        # The metrics-only path must run with no API key configured at all.
+        # `gonzo score` exits 1 on prose that misses the bar, so a zero exit
+        # here would mean the scorer had stopped discriminating.
+        run: |
+          cd /tmp
+          echo "The meeting was held. It was fine. Nothing happened." > flat.txt
+
+          set +e
+          /tmp/clean/bin/gonzo score --no-judge flat.txt
+          status=$?
+          set -e
+
+          if [ "$status" -ne 1 ]; then
+            echo "::error::expected exit 1 on failing prose, got $status"
+            exit 1
+          fi
+          echo "console script ran with no credentials and rejected flat prose"

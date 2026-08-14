@@ -1,5 +1,7 @@
 # Gonzo Style Engine
 
+[![tests](https://github.com/CatCorner22/HST/actions/workflows/test.yml/badge.svg)](https://github.com/CatCorner22/HST/actions/workflows/test.yml)
+
 A prose engine in the gonzo tradition of American literary journalism — the
 first-person, participant, openly-biased mode of reporting that Hunter S.
 Thompson invented.
@@ -105,6 +107,11 @@ rule that nothing dynamic may touch the system prompt — a test enforces it.
 pytest              # 109 offline tests, no API key needed
 pytest -m live      # 9 adversarial guardrail tests, needs credentials
 ```
+
+CI runs the offline suite on Python 3.11, 3.12 and 3.13, re-checks the fixture
+calibration explicitly, and installs a built wheel into a clean virtualenv to
+confirm the style data and web assets are actually packaged — an editable
+install cannot catch that, and one such bug already shipped.
 
 The suite pins the scorer in **both** directions, because a scorer that always
 passes is worthless. Every bug found in the adversarial sweep
