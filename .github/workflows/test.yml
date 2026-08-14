@@ -1,8 +1,11 @@
 name: tests
 
 on:
+  # Only main on push. A push to a branch with an open PR already triggers the
+  # `pull_request` event, so listening to both ran every job twice -- eight
+  # jobs where four would do, for identical results.
   push:
-    branches: ["**"]
+    branches: [main]
   pull_request:
   workflow_dispatch:
 
