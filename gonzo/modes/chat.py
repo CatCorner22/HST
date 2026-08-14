@@ -10,7 +10,7 @@ from collections.abc import Iterator
 from dataclasses import dataclass, field
 from typing import Any
 
-from gonzo.client import GonzoClient
+from gonzo.client import GonzoClient, StreamReset
 from gonzo.config import MODES
 from gonzo.style.spec import StyleSpec, load_spec
 from gonzo.style.variance import VarianceDirective, VarianceDirector
@@ -66,15 +66,24 @@ class ChatSession:
         self._record(user_text, completion.text)
         return completion.text
 
-    def stream(self, user_text: str) -> Iterator[str]:
-        """Send a turn, yielding text deltas."""
+    def stream(self, user_text: str) -> Iterator[str | StreamReset]:
+        """Send a turn, yielding text deltas.
+
+        A `StreamReset` is passed through to the caller and also clears the
+        locally accumulated text, so the history records only the reply that
+        actually stands -- not the abandoned output of a model that declined
+        partway through.
+        """
         chunks: list[str] = []
         for chunk in self.client.stream(
             system_prompt=self.spec.system_prompt(),
             messages=self._messages(user_text),
             mode="chat",
         ):
-            chunks.append(chunk)
+            if isinstance(chunk, StreamReset):
+                chunks.clear()
+            else:
+                chunks.append(chunk)
             yield chunk
         self._record(user_text, "".join(chunks))
 

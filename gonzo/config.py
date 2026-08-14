@@ -9,7 +9,11 @@ from pathlib import Path
 PACKAGE_ROOT = Path(__file__).resolve().parent
 REPO_ROOT = PACKAGE_ROOT.parent
 STYLE_DIR = PACKAGE_ROOT / "style"
-WEB_DIR = REPO_ROOT / "web"
+# Inside the package, not beside it. Resolving this as REPO_ROOT/"web" worked
+# from a source checkout and from `pip install -e .`, but a normal wheel install
+# put site-packages/gonzo/../web on the path -- which does not exist, so
+# `gonzo serve` silently mounted nothing and served a 404 for the whole UI.
+WEB_DIR = PACKAGE_ROOT / "web"
 
 # Opus 5. Do not append a date suffix — the bare id is the complete model id.
 MODEL = os.environ.get("GONZO_MODEL", "claude-opus-5")

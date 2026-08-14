@@ -7,7 +7,13 @@ import json
 import sys
 from pathlib import Path
 
-from gonzo.client import CredentialsError, GonzoClient, RefusalError
+from gonzo.client import (
+    CredentialsError,
+    EmptyCompletionError,
+    GonzoClient,
+    RefusalError,
+    StreamReset,
+)
 from gonzo.modes.chat import ChatSession
 from gonzo.modes.compose import Composer
 from gonzo.modes.critique import Critic
@@ -19,7 +25,10 @@ from gonzo.style.spec import load_spec
 def _read_input(source: str | None) -> str:
     """Read from a file path, or from stdin when given '-' or nothing."""
     if source and source != "-":
-        return Path(source).read_text(encoding="utf-8")
+        try:
+            return Path(source).read_text(encoding="utf-8")
+        except OSError as exc:
+            sys.exit(f"error: {exc}")
     if sys.stdin.isatty():
         sys.exit("error: no input. Pass a file path, or pipe text on stdin.")
     return sys.stdin.read()
@@ -51,9 +60,14 @@ def cmd_chat(args: argparse.Namespace) -> int:
         print()
         try:
             for chunk in session.stream(line):
-                print(chunk, end="", flush=True)
-        except RefusalError as exc:
-            print(f"[declined: {exc}]", file=sys.stderr)
+                if isinstance(chunk, StreamReset):
+                    # A fallback superseded what we just printed. A terminal
+                    # cannot un-print, so mark the boundary plainly.
+                    print("\n[the previous model declined; restarting]\n", flush=True)
+                else:
+                    print(chunk, end="", flush=True)
+        except (RefusalError, EmptyCompletionError) as exc:
+            print(f"\n[{exc}]", file=sys.stderr)
         print("\n")
 
 
@@ -72,7 +86,9 @@ def cmd_write(args: argparse.Namespace) -> int:
             "directive": draft.directive.to_dict(),
             "report": draft.report.to_dict(),
         }, indent=2))
-        return 0
+        # Same contract in both output formats: a draft that misses the bar
+        # exits non-zero whether or not --json was passed.
+        return 0 if draft.report.passed else 1
 
     print(draft.text)
     if not args.quiet:

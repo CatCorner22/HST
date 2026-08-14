@@ -7,15 +7,18 @@ with its own diagnostics attached and gets rewritten.
 
 from __future__ import annotations
 
+import logging
 from dataclasses import dataclass, field
 
-from gonzo.client import GonzoClient
+from gonzo.client import GonzoClient, RefusalError, StructuredOutputError
 from gonzo.config import MODES
 from gonzo.scoring.judge import Judge
 from gonzo.scoring.metrics import score_text
 from gonzo.scoring.report import CombinedReport
 from gonzo.style.spec import StyleSpec, load_spec
 from gonzo.style.variance import VarianceDirective, VarianceDirector
+
+log = logging.getLogger(__name__)
 
 
 @dataclass
@@ -109,5 +112,13 @@ class Composer:
 
     def _assess(self, text: str, assignment: str) -> CombinedReport:
         metrics = score_text(text, self.spec)
-        verdict = self._judge.assess(text, assignment=assignment) if self._judge else None
+        verdict = None
+        if self._judge is not None:
+            try:
+                verdict = self._judge.assess(text, assignment=assignment)
+            except (StructuredOutputError, RefusalError) as exc:
+                # The judge is a quality gate, not the deliverable. Losing a
+                # finished draft because the grader misbehaved is the worst
+                # possible trade -- degrade to metrics-only and say so.
+                log.warning("judge unavailable, scoring on metrics alone: %s", exc)
         return CombinedReport(metrics=metrics, verdict=verdict)

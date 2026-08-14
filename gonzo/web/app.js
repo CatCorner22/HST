@@ -21,7 +21,15 @@ async function postJSON(url, body) {
   });
   if (!res.ok) {
     let detail = res.statusText;
-    try { detail = (await res.json()).detail || detail; } catch (_) { /* non-JSON error */ }
+    try {
+      const body = (await res.json()).detail;
+      // FastAPI returns a string for HTTPException but a list of error objects
+      // for request-validation failures; rendering the latter directly gives
+      // the user "[object Object]".
+      if (typeof body === 'string') detail = body;
+      else if (Array.isArray(body)) detail = body.map((e) => `${(e.loc || []).join('.')}: ${e.msg}`).join('; ');
+      else if (body) detail = JSON.stringify(body);
+    } catch (_) { /* non-JSON error body */ }
     throw new Error(detail);
   }
   return res.json();
@@ -151,6 +159,11 @@ $('chat-form').addEventListener('submit', async (event) => {
         case 'delta':
           body.textContent += payload.text;
           transcript.scrollTop = transcript.scrollHeight;
+          break;
+        case 'reset':
+          // A server-side fallback superseded everything streamed so far: the
+          // model that produced it went on to decline. Drop it.
+          body.textContent = '';
           break;
         case 'error':
           body.parentElement.classList.add('err');

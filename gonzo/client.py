@@ -26,6 +26,7 @@ from dataclasses import dataclass, field
 from typing import Any
 
 import anthropic
+from pydantic import ValidationError
 
 from gonzo.config import FALLBACK_BETA, MODEL, MODES, resolve_api_key
 
@@ -47,6 +48,48 @@ class CredentialsError(RuntimeError):
 
     def __init__(self) -> None:
         super().__init__(self.MESSAGE)
+
+
+class StreamReset:
+    """Sentinel yielded by `stream()` when a fallback supersedes prior output.
+
+    Everything yielded before it came from a model that subsequently declined.
+    Callers should discard it and render only what follows.
+    """
+
+    __slots__ = ()
+
+    def __repr__(self) -> str:  # pragma: no cover - debug aid
+        return "<StreamReset>"
+
+
+STREAM_RESET = StreamReset()
+
+
+class StructuredOutputError(RuntimeError):
+    """The model's reply did not satisfy the requested schema.
+
+    Usually a decline (prose where JSON was demanded) or a truncated response.
+    Raised instead of a bare pydantic ValidationError so callers can catch one
+    engine-level type.
+    """
+
+    def __init__(self, cause: Exception) -> None:
+        self.cause = cause
+        super().__init__(f"model output did not match the requested schema: {cause}")
+
+
+class EmptyCompletionError(RuntimeError):
+    """The model returned no prose -- thinking-only, or truncated at max_tokens."""
+
+    def __init__(self, stop_reason: str | None) -> None:
+        self.stop_reason = stop_reason
+        hint = (
+            " The response hit max_tokens before producing text; raise max_tokens."
+            if stop_reason == "max_tokens"
+            else ""
+        )
+        super().__init__(f"model returned no text (stop_reason={stop_reason}).{hint}")
 
 
 class RefusalError(RuntimeError):
@@ -122,9 +165,26 @@ def _check_refusal(response: Any) -> None:
 
 
 def _text_of(response: Any) -> str:
-    """Concatenate text blocks, skipping thinking and other block types."""
+    """Concatenate the text blocks belonging to the model that actually answered.
+
+    Every request opts into server-side fallbacks, so when one fires the API
+    returns a single message whose `content` is
+
+        [<declining model's abandoned blocks>, fallback, <replacement's blocks>]
+
+    with `stop_reason == "end_turn"` -- a normal success. Concatenating every
+    text block would glue the refused half-sentence onto the replacement's
+    fresh opening and hand it back as a clean result. One `fallback` block
+    appears per hop that ran and declined, so text after the *last* one is the
+    reply that stands.
+    """
+    blocks = list(getattr(response, "content", None) or [])
+    last_hop = max(
+        (i for i, b in enumerate(blocks) if getattr(b, "type", None) == "fallback"),
+        default=-1,
+    )
     return "".join(
-        block.text for block in response.content if getattr(block, "type", None) == "text"
+        b.text for b in blocks[last_hop + 1 :] if getattr(b, "type", None) == "text"
     ).strip()
 
 
@@ -188,8 +248,16 @@ class GonzoClient:
             raise _credentials_error(exc) from exc
 
         _check_refusal(response)
+
+        text = _text_of(response)
+        if not text:
+            # A thinking-only or truncated response yields no prose. Returning
+            # it as a success would write an empty assistant turn into history
+            # and score an empty string, both silently.
+            raise EmptyCompletionError(getattr(response, "stop_reason", None))
+
         return Completion(
-            text=_text_of(response),
+            text=text,
             usage=Usage.from_response(response.usage),
             model=getattr(response, "model", self.model),
         )
@@ -201,19 +269,33 @@ class GonzoClient:
         messages: list[dict[str, Any]],
         mode: str = "chat",
         model: str | None = None,
-    ) -> Iterator[str]:
+    ) -> Iterator[str | StreamReset]:
         """Streaming generation, yielding text deltas.
 
-        The final message is inspected after the stream drains so a mid-stream
-        refusal still raises rather than returning a silent partial.
+        Iterates typed events rather than `text_stream` so hop boundaries stay
+        visible. When a server-side fallback fires mid-stream, everything
+        already yielded came from the model that then declined -- abandoned
+        text, not part of the answer. There is no way to un-send it, so the
+        generator yields `STREAM_RESET` at the boundary and callers discard
+        what they have shown. A caller that ignores the sentinel degrades to
+        the old spliced behavior rather than crashing.
+
+        The final message is inspected after the stream drains, so a refusal
+        still raises instead of returning a silent partial.
         """
         kwargs = self._request_kwargs(
             system_prompt=system_prompt, messages=messages, mode=mode, model=model
         )
         try:
             with self._client.beta.messages.stream(**kwargs) as stream:
-                for chunk in stream.text_stream:
-                    yield chunk
+                for event in stream:
+                    kind = getattr(event, "type", None)
+                    if kind == "content_block_start":
+                        if getattr(event.content_block, "type", None) == "fallback":
+                            yield STREAM_RESET
+                    elif kind == "content_block_delta":
+                        if getattr(event.delta, "type", None) == "text_delta":
+                            yield event.delta.text
                 final = stream.get_final_message()
         except TypeError as exc:
             raise _credentials_error(exc) from exc
@@ -243,5 +325,11 @@ class GonzoClient:
             )
         except TypeError as exc:
             raise _credentials_error(exc) from exc
+        except ValidationError as exc:
+            # A decline returns prose where JSON was demanded, so pydantic
+            # raises before we ever get to look at stop_reason. Surface it as
+            # something callers already handle rather than a schema error.
+            raise StructuredOutputError(exc) from exc
+
         _check_refusal(response)
         return response.parsed_output

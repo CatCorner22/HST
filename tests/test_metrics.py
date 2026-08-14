@@ -91,10 +91,33 @@ class TestRegisterDetection:
 
 
 class TestCueMatching:
-    def test_cues_match_on_word_boundaries(self):
-        """Regression: substring matching fired 'ended' on 'attended'."""
-        text = "Everyone attended the session. The costs were the closest estimate."
-        assert not score_text(text).has_elegiac
+    """Regression guards for cue matching.
+
+    The original bug: cues were matched with `cue in text`, so "ended" fired on
+    "attended" and "lost" on "closest". Asserting that via score_text no longer
+    works -- those words were removed from the lexicon during calibration, so
+    the test passed for the wrong reason and could not fail. Test the helper
+    directly against cues that DO appear as substrings.
+    """
+
+    def test_cue_hits_respect_word_boundaries(self):
+        from gonzo.scoring.metrics import _cue_hits
+
+        assert _cue_hits("everyone attended the session", ["ended"]) == 0
+        assert _cue_hits("the closest estimate", ["lost"]) == 0
+        assert _cue_hits("the recovery is over", ["over"]) == 1
+
+    def test_multiword_cues_still_match(self):
+        from gonzo.scoring.metrics import _cue_hits
+
+        assert _cue_hits("that shop is no longer there", ["no longer"]) == 1
+        assert _cue_hits("nothing lingers longer", ["no longer"]) == 0
+
+    def test_distinct_cue_counting(self):
+        from gonzo.scoring.metrics import _distinct_cues
+
+        assert _distinct_cues("no longer, and no longer again", ["no longer"]) == 1
+        assert _distinct_cues("no longer and used to", ["no longer", "used to"]) == 2
 
 
 class TestAdjectiveStacks:

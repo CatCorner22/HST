@@ -167,32 +167,133 @@ bug — so that permission is tested too.
 - **Sessions are in-process.** `server.py` holds chat state in a dict with no
   eviction. Fine for a local tool, wrong for a deployment.
 
+## The adversarial debug sweep
+
+After the first push, the engine went through a fan-out bug hunt: seven finders,
+one per subsystem, each required to prove defects by *running code* rather than
+by reading it; then an independent skeptic per finding, told to refute it and
+defaulting to not-a-bug. 45 agents, 38 candidates, **22 confirmed, 16 rejected**.
+
+The rejections matter as much as the confirmations. They were mostly documented
+design decisions the reporter disagreed with (unbounded chat history, the
+unseeded-session contract), test-*coverage* gaps correctly distinguished from
+test *defects*, and claims resting on a misreading of the spec. Without a
+refutation stage all sixteen would have shipped as work items.
+
+### What it found
+
+Five high, twelve medium, five low. The ones worth recording:
+
+**The declined-hop splice** (`client.py`). Every request opts into server-side
+fallbacks. When one fires, the API returns a *single* message whose content is
+`[<declining model's abandoned blocks>, fallback, <replacement's blocks>]` with
+`stop_reason == "end_turn"` — an ordinary success. `_text_of()` concatenated
+every text block, so it glued the refused half-sentence onto the replacement's
+fresh opening and returned it as clean output. Nothing raised. Composer scored
+and revised the spliced text; ChatSession wrote it to history. The bug appeared
+only when the feature was doing its job. Extraction is now hop-aware, and
+`stream()` yields a `STREAM_RESET` sentinel at the boundary so a UI can discard
+what it has already shown.
+
+**The sentence splitter** (`metrics.py`). Splitting on every `[.!?]` made
+"Mr. Smith" two sentences and broke `$2.1 million` mid-number. Sentence count
+drives mean length, standard deviation, coefficient of variation and fragment
+rate — so the most load-bearing metric in the scorer was computed on fabricated
+boundaries.
+
+**A regex-flag bug worth its own note.** The fix protects abbreviations that
+*can* end a sentence (`p.m.`, `Inc.`) only when not followed by a capital. That
+pattern compiles with `re.I` so the abbreviation list matches any casing — and
+under `IGNORECASE`, `[A-Z0-9]` also matches lowercase. The guard therefore fired
+on *any* following letter and silently disabled the whole rule. It needed
+`(?-i:[A-Z0-9])` to scope case-sensitivity back on for the class alone. Running
+the code caught it; reading it would not have.
+
+**Specificity was double-counted.** `$4.3 million at 4:15` matched `_CURRENCY`,
+`_MEASURE`, `_TIME` *and* `_NUMERAL`, and the per-pattern counts were summed —
+inflating density 2-3x and making the anchoring gate far easier to clear than
+intended. Now counted as non-overlapping spans.
+
+**A dead branch in adjective detection.** `_looks_adjectival` checked
+`len(word) < 4` *before* the closed-list lookup, so every three-letter adjective
+in that list — wet, dry, hot, raw, odd, big, low, old, new, bad, mad — was
+silently discarded. No error; they simply never counted.
+
+**A 64-bit seed the browser could not round-trip.** Seeds are displayed in the
+UI and pasted back to reproduce a run, but JavaScript numbers are IEEE doubles:
+anything above 2^53 rounds silently, so the displayed seed reproduced nothing.
+Constrained to 53 bits — still far more entropy than this needs.
+
+**`WEB_DIR` resolved outside the package**, so a normal wheel install pointed at
+`site-packages/gonzo/../web`, which does not exist: `gonzo serve` mounted nothing
+and served the entire UI as 404. It worked from a source checkout and from
+`pip install -e .`, which is exactly why it survived the first review. `web/` now
+lives inside the package.
+
+Also fixed: refusals surfacing as pydantic `ValidationError` instead of
+`RefusalError`; a judge failure discarding an otherwise finished draft
+(out-of-range scores clamp rather than reject, and the judge degrades to
+metrics-only); empty completions written into history as replies; acronyms
+scored as shouting, which disqualified the elegiac band from any passage naming
+an agency; gerund noun lists scoring as adjective stacks; `--json` exiting 0 on
+a draft that exits 1 without it; and two frontend defects.
+
+### Two tests could not fail
+
+The sweep audited the suite itself and found two guards passing for the wrong
+reason. `test_guardrails_come_last` asserted only that guardrails followed the
+persona — which the spec sitting between them already guaranteed.
+`test_cues_match_on_word_boundaries` named a bug the current lexicon can no
+longer express, because the offending words were removed during calibration.
+Both now assert their property directly.
+
+### Every fix is mutation-tested
+
+A regression test that cannot fail is worse than none. Each fix was reverted in
+turn and its guard confirmed to fail: **11 mutations, 11 caught.**
+
+The first attempt reported all eight mutations as *surviving*. The harness was
+grepping for lowercase `failed` while pytest prints `FAILED` — so it reported
+perfect code and broken tests identically. Recorded here because a broken
+verification harness is indistinguishable from success until you check it.
+
 ## Verification status
 
 Verified in the build environment:
 
-- 74 offline tests pass — scorer calibration in both directions, variance
-  determinism and spread, prompt-cache byte-stability, request shape, mode
-  wiring, guardrail contract.
+- **109 offline tests pass** (74 before the sweep). Scorer calibration in both
+  directions, variance determinism and spread, prompt-cache byte-stability,
+  request shape, mode wiring, guardrail contract, and one regression guard per
+  confirmed bug.
+- All 11 fix mutations caught.
 - Request construction checked against a mocked SDK: no sampling parameters, a
   cache breakpoint on the system block, `effort` nested in `output_config`,
   refusal fallbacks opted in.
-- Server boots; UI, static assets, and the metrics-only scoring path all serve.
+- Server boots from the relocated in-package web directory; UI, static assets,
+  and the metrics-only scoring path all serve.
 - Error paths return actionable messages rather than tracebacks or hangs.
 
-**Not verified here: anything requiring the API.** The build environment has no
-Anthropic credentials, so no prose was actually generated, the revision loop
-never ran end to end, the rubric judge was never invoked against a live model,
-and the nine adversarial guardrail tests were collected but not executed.
+Fixture calibration after the scorer fixes:
 
-Two bugs found offline are a fair indication of what that gap can hide. A
-`max_tokens` of 32,000 on a non-streaming call raises `ValueError` before the
-request is sent, which would have broken every `gonzo write` invocation; and
-missing credentials surfaced as a raw `TypeError` from inside SDK header
-validation. Both are fixed and both now have regression tests. Neither would
-have appeared in a purely static review.
+| Fixture | Before | After | Outcome |
+|---|---|---|---|
+| flat corporate minutes | 39.2 | 39.2 | fails |
+| all-tic pastiche | 48.8 | **34.8** | fails — now correctly scores *below* flat |
+| good prose, no elegiac break | 83.0 | 83.0 | fails — the thesis under test |
+| written to spec | 100.0 | 100.0 | passes |
 
-To close the gap, set a key and run:
+Pastiche falling below flat prose is the fix working: removing the
+double-counted specificity and the false adjective stacks stripped credit it
+never earned.
+
+**Still not verified: anything requiring the API.** The build environment has no
+Anthropic credentials, so no prose was generated, the revision loop never ran end
+to end, the rubric judge was never invoked against a live model, and the nine
+adversarial guardrail tests were collected but not executed. The sweep narrowed
+this gap considerably — the worst bug it found lives on exactly that path and was
+proven with a mock SSE server rather than a live call — but it did not close it.
+
+To close it, set a key and run:
 
 ```bash
 pytest -m live                                   # adversarial guardrails

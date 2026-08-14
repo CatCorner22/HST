@@ -33,9 +33,15 @@ class TestSystemPrompt:
 
     def test_guardrails_come_last(self):
         """Last instruction before the conversation starts, so nothing in the
-        style guidance can be read as loosening them."""
+        style guidance can be read as loosening them.
+
+        Asserts the property directly. The earlier version only checked that
+        guardrails followed the persona, which the spec sitting between them
+        already guaranteed -- it could not fail no matter how the sections were
+        reordered.
+        """
         prompt = load_spec().system_prompt()
-        assert prompt.index(GUARDRAILS.strip()) > prompt.index(PERSONA.strip())
+        assert prompt.rstrip().endswith(GUARDRAILS.strip())
 
     def test_states_non_impersonation_explicitly(self):
         prompt = load_spec().system_prompt().lower()

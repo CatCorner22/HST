@@ -12,7 +12,7 @@ from fastapi.responses import FileResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
-from gonzo.client import CredentialsError, GonzoClient, RefusalError
+from gonzo.client import CredentialsError, GonzoClient, RefusalError, StreamReset
 from gonzo.config import WEB_DIR
 from gonzo.modes.chat import ChatSession
 from gonzo.modes.compose import Composer
@@ -94,7 +94,10 @@ def chat(req: ChatRequest) -> StreamingResponse:
         yield _sse("session", {"session_id": session_id})
         try:
             for chunk in session.stream(req.message):
-                yield _sse("delta", {"text": chunk})
+                if isinstance(chunk, StreamReset):
+                    yield _sse("reset", {})
+                else:
+                    yield _sse("delta", {"text": chunk})
         except RefusalError as exc:
             yield _sse("error", {"message": str(exc), "kind": "refusal"})
             return

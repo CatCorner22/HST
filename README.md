@@ -102,17 +102,19 @@ rule that nothing dynamic may touch the system prompt — a test enforces it.
 ## Tests
 
 ```bash
-pytest              # 74 offline tests, no API key needed
+pytest              # 109 offline tests, no API key needed
 pytest -m live      # 9 adversarial guardrail tests, needs credentials
 ```
 
 The suite pins the scorer in **both** directions, because a scorer that always
-passes is worthless:
+passes is worthless. Every bug found in the adversarial sweep
+([`docs/DESIGN.md`](docs/DESIGN.md)) also carries a regression guard, and every
+guard is mutation-tested — reverted in turn to confirm it actually fails:
 
 | Fixture | Score | Outcome |
 |---|---|---|
 | flat corporate minutes | 39.2 | fails — uniform rhythm, unanchored |
-| all-tic pastiche | 48.8 | fails — tic budget blown 43× |
+| all-tic pastiche | 34.8 | fails — tic budget blown 43× |
 | **good prose, no elegiac break** | **83.0** | **fails — the thesis under test** |
 | written to spec | 100.0 | passes |
 

@@ -23,6 +23,13 @@ from dataclasses import asdict, dataclass
 from gonzo.style.spec import StyleSpec, load_spec
 
 
+# Seeds are surfaced in the web UI and pasted back in to reproduce a run, so
+# they must survive a JSON round-trip through JavaScript. JS numbers are IEEE
+# doubles: anything above 2**53 is silently rounded, which meant a displayed
+# 64-bit seed reproduced nothing.
+_MAX_SEED = 2**53
+
+
 @dataclass(frozen=True)
 class VarianceDirective:
     """One request's stylistic assignment."""
@@ -78,7 +85,7 @@ class VarianceDirector:
         its output while different prompts diverge.
         """
         digest = hashlib.sha256(text.encode("utf-8")).digest()
-        return int.from_bytes(digest[:8], "big")
+        return int.from_bytes(digest[:8], "big") % _MAX_SEED
 
     def draw(
         self,
@@ -93,7 +100,7 @@ class VarianceDirector:
         same assignment reproduces. Passing neither draws at random.
         """
         if seed is None:
-            seed = self.seed_from(basis) if basis else random.getrandbits(64)
+            seed = self.seed_from(basis) if basis else random.getrandbits(53)
 
         rng = random.Random(seed)
 

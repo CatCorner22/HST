@@ -59,7 +59,9 @@ button.primary { background: var(--accent); border-color: var(--accent); color: 
 button.primary:hover { filter: brightness(1.12); color: #16120e; }
 button:disabled { opacity: .45; cursor: default; filter: none; }
 
-.transcript { min-height: 220px; margin-bottom: 14px; }
+/* Must be a scroll container: app.js sets scrollTop to follow the streaming
+   reply, which is a no-op unless this element actually scrolls. */
+.transcript { min-height: 220px; max-height: 55vh; overflow-y: auto; margin-bottom: 14px; }
 .turn { margin: 0 0 18px; }
 .turn .who { font: 600 11px/1 var(--mono); text-transform: uppercase; letter-spacing: .1em; color: var(--dim); }
 .turn.you .who { color: var(--accent); }

@@ -12,13 +12,22 @@ import re
 from dataclasses import dataclass, field
 
 from gonzo.client import GonzoClient
-from gonzo.config import MODES
-from gonzo.scoring.metrics import StyleReport, score_text
+from gonzo.config import LONGFORM_MIN_WORDS, MODES
+from gonzo.scoring.metrics import StyleReport, _words, score_text
 from gonzo.style.spec import StyleSpec, load_spec
 from gonzo.style.variance import VarianceDirector
 
 # Tokens that must survive restyling: numbers, money, times, percentages.
-_FACT = re.compile(r"[$£€]\s?\d[\d,.]*|\b\d{1,2}:\d{2}\b|\b\d[\d,.]*\s*%|\b\d[\d,.]*\b")
+# The trailing (?<![.,]) matters: without it the currency branch swallowed the
+# sentence's closing punctuation, so "$4.3 million." in the source became the
+# token "$4.3." and never matched the "$4.3" that did survive in the output --
+# reporting a preserved figure as dropped.
+_FACT = re.compile(
+    r"[$£€]\s?\d[\d,.]*(?<![.,])"
+    r"|\b\d{1,2}:\d{2}\b"
+    r"|\b\d[\d,.]*(?<![.,])\s*%"
+    r"|\b\d[\d,.]*(?<![.,])"
+)
 
 
 @dataclass
@@ -41,7 +50,12 @@ class Transferrer:
         self._director = VarianceDirector(self.spec)
 
     def transfer(self, source: str, *, seed: int | None = None) -> TransferResult:
-        directive = self._director.draw(seed=seed, basis=source, longform=False)
+        # Grade and instruct on the same terms. The scorer treats anything over
+        # LONGFORM_MIN_WORDS as long-form -- which mandates register motion and
+        # an elegiac break -- so a long restyle drawn with longform=False was
+        # being judged against requirements it was never given.
+        longform = len(_words(source)) >= LONGFORM_MIN_WORDS
+        directive = self._director.draw(seed=seed, basis=source, longform=longform)
         cfg = MODES["transfer"]
 
         prompt = (

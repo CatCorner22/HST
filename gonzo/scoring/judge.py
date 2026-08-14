@@ -17,7 +17,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 from gonzo.client import GonzoClient
 from gonzo.config import JUDGE_MODEL
@@ -86,6 +86,25 @@ class JudgeVerdict(BaseModel):
     fixes: list[str] = Field(
         description="2-4 specific, actionable revisions. Name the passage each applies to.",
     )
+
+    @field_validator(
+        "aim", "anchoring", "register_control", "elegiac_quality",
+        "argument", "originality",
+        mode="before",
+    )
+    @classmethod
+    def _clamp(cls, value: object) -> object:
+        """Clamp scores into range instead of rejecting them.
+
+        `ge`/`le` are dropped when the schema goes over the wire -- structured
+        outputs do not support numeric constraints -- so the bound is enforced
+        only here, client-side. Rejecting an 11 would raise a ValidationError
+        that discards an otherwise finished draft, which is a far worse outcome
+        than treating it as a 10.
+        """
+        if isinstance(value, (int, float)) and not isinstance(value, bool):
+            return max(0, min(10, int(round(value))))
+        return value
 
     @property
     def score(self) -> float:

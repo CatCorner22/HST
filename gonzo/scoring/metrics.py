@@ -26,7 +26,49 @@ from gonzo.style.spec import StyleSpec, load_spec
 
 # --- tokenization ----------------------------------------------------------
 
+# Abbreviations that end in a period without ending a sentence. Splitting
+# naively on "." made "Mr. Smith" two sentences and "$2.1 million" a sentence
+# boundary mid-number, which inflated sentence_count and inverted every rhythm
+# metric derived from it.
+# Titles and the like: these are never the last word of a sentence, so their
+# period is always protected.
+_ABBREV_ALWAYS = (
+    "mr", "mrs", "ms", "dr", "prof", "rev", "hon", "sr", "jr", "st",
+    "vs", "no", "vol", "fig", "ave", "blvd", "rd", "ln", "ct", "mt",
+    "jan", "feb", "mar", "apr", "jun", "jul", "aug", "sep", "sept", "oct", "nov", "dec",
+    "mon", "tue", "wed", "thu", "fri", "sat", "sun",
+    "e.g", "i.e", "cf", "approx",
+)
+# These CAN end a sentence ("...by 4:15 p.m. Nobody left."), so their period is
+# protected only when what follows is not the start of a new sentence.
+_ABBREV_MEDIAL = (
+    "a.m", "p.m", "etc", "inc", "ltd", "co", "corp", "dept", "est", "pp", "al", "ft",
+    "u.s", "u.k",
+)
+
+_ABBREV_RE = re.compile(
+    r"(?<!\w)(?:" + "|".join(re.escape(a) for a in _ABBREV_ALWAYS) + r")\.",
+    re.I,
+)
+# Protect only when NOT followed by whitespace + a capital or digit, i.e. only
+# when it is genuinely mid-sentence.
+#
+# The `(?-i:...)` scope is load-bearing: this pattern is compiled with re.I so
+# the abbreviation list matches any casing, but under IGNORECASE the class
+# [A-Z0-9] also matches lowercase, which made the lookahead fire on ANY
+# following letter and silently disabled the whole rule. The inline flag turns
+# case-sensitivity back on for the class alone.
+_ABBREV_MEDIAL_RE = re.compile(
+    r"(?<!\w)(?:" + "|".join(re.escape(a) for a in _ABBREV_MEDIAL) + r")\."
+    r"(?!\s+(?-i:[A-Z0-9]))",
+    re.I,
+)
+# A decimal point or a dotted initial ("J. R. Smith") is never a boundary.
+_DECIMAL_RE = re.compile(r"\d\.\d")
+_INITIAL_RE = re.compile(r"(?<!\w)[A-Z]\.")
+
 _SENTENCE_SPLIT = re.compile(r"(?<=[.!?])[\"')\]]*\s+|\n{2,}")
+_PROTECTED = "\x00"  # placeholder standing in for a non-terminal period
 _WORD = re.compile(r"[A-Za-z][A-Za-z'’-]*")
 
 # Hard specifics: the inventory detail that anchors hyperbole.
@@ -40,12 +82,20 @@ _MEASURE = re.compile(
     r"minutes?|hours?|days?|weeks?|months?|years?)\b",
     re.I,
 )
-# A proper noun that isn't just a sentence-initial capital.
-_PROPER = re.compile(r"(?<![.!?]\s)(?<!^)\b[A-Z][a-z]{2,}\b", re.M)
+# A capitalized word. Sentence-initial capitals are stripped structurally in
+# _count_proper_nouns rather than by lookbehind -- lookbehind cannot see past a
+# leading quote or bracket, so `"Nobody told me` and newline-initial words were
+# being counted as proper nouns and inflating specificity.
+_CAPITALIZED = re.compile(r"\b[A-Z][a-z]{2,}\b")
 
 _EM_DASH = re.compile(r"—|--")
 _ELLIPSIS = re.compile(r"\.\.\.|…")
-_ALLCAPS = re.compile(r"\b[A-Z]{3,}\b")
+# Shouting, not initialisms. An acronym like FEMA or DMV is ordinary reporting
+# vocabulary; treating it as emphasis disqualified the elegiac band from any
+# passage that named an agency. Require a run of two or more shouted words, or
+# a single long one, to count as emphasis.
+_ALLCAPS_TOKEN = re.compile(r"\b[A-Z]{3,}\b")
+_SHOUT_RUN = re.compile(r"\b[A-Z]{2,}\b(?:[^A-Za-z\n]{1,3}\b[A-Z]{2,}\b)+")
 _EXCLAIM = re.compile(r"!")
 
 # Adjective detection without a POS tagger: morphology plus a closed list of
@@ -62,8 +112,20 @@ _COMMON_ADJ = frozenset(
     strange odd weird sick sweet sour raw rank foul clean dirty wet dry sharp
     dull blunt grim bleak stark bare thin thick tight loose free lost blind
     deaf numb dead live cheap mean lean flat round square long short high low
-    old young new fresh stale rotten""".split()
+    old young new fresh stale rotten black white red green blue grey gray brown
+    yellow pale wet damp coarse crude blunt vast lush drab""".split()
 )
+# A modifier stack is introduced by a determiner or preposition ("a vicious,
+# bloated, atavistic swine"). Requiring one is what separates a real stack from
+# a verb followed by a gerund list ("the work involved filing, sorting, and
+# shredding"), which morphology alone cannot distinguish.
+_STACK_INTRODUCERS = frozenset(
+    """a an the this that these those his her its their my our your no some any
+    every each one two three four five several many few most other another of
+    in on at with into through from by for like about across behind beneath
+    beside under over toward against amid""".split()
+)
+
 # Words with adjective morphology that are almost never adjectives in practice.
 _ADJ_STOP = frozenset(
     """the a an and or but if then than that this these those there here when
@@ -74,8 +136,13 @@ _ADJ_STOP = frozenset(
 
 
 def _sentences(text: str) -> list[str]:
-    parts = (s.strip() for s in _SENTENCE_SPLIT.split(text))
-    return [s for s in parts if s]
+    """Split into sentences, protecting periods that do not end one."""
+    masked = text
+    for pattern in (_ABBREV_RE, _ABBREV_MEDIAL_RE, _DECIMAL_RE, _INITIAL_RE):
+        masked = pattern.sub(lambda m: m.group(0).replace(".", _PROTECTED), masked)
+
+    parts = (p.replace(_PROTECTED, ".").strip() for p in _SENTENCE_SPLIT.split(masked))
+    return [p for p in parts if p]
 
 
 def _words(text: str) -> list[str]:
@@ -84,9 +151,18 @@ def _words(text: str) -> list[str]:
 
 def _looks_adjectival(word: str) -> bool:
     low = word.lower()
-    if low in _ADJ_STOP or len(low) < 4:
+    if low in _ADJ_STOP:
         return False
-    return low in _COMMON_ADJ or bool(_ADJ_SUFFIX.search(low))
+    # Check the closed list BEFORE the length guard. The guard exists to stop
+    # short function words matching a suffix by accident, but applying it first
+    # silently discarded every three-letter adjective in the list -- wet, dry,
+    # hot, raw, odd, big, low, old, new, bad, mad raised no error, they simply
+    # never counted.
+    if low in _COMMON_ADJ:
+        return True
+    if len(low) < 4:
+        return False
+    return bool(_ADJ_SUFFIX.search(low))
 
 
 def _adjective_stacks(text: str, min_run: int = 3) -> int:
@@ -106,9 +182,28 @@ def _adjective_stacks(text: str, min_run: int = 3) -> int:
         tokens = re.findall(r"[A-Za-z][A-Za-z'’-]*|,", sentence)
         run: list[str] = []
         preceded_by_comma = False
+        previous: str | None = None   # token immediately before the current run
 
-        def flush(run: list[str]) -> int:
-            if len(run) < min_run:
+        def flush(run: list[str], has_head: bool, introducer: str | None) -> int:
+            """Score one candidate run of modifiers.
+
+            A real adjective stack modifies a following noun, so `has_head`
+            must be true -- a run that simply runs off the end of the sentence
+            modifies nothing.
+
+            `introducer` is the token before the run. A stack is introduced
+            by a determiner or preposition; a run following a verb is a gerund
+            list, not a stack, and morphology cannot tell the two apart.
+
+            An all-gerund run is rejected outright as a second guard, since
+            genuine stacks are essentially never composed entirely of -ing
+            words.
+            """
+            if len(run) < min_run or not has_head:
+                return 0
+            if introducer is None or introducer.lower() not in _STACK_INTRODUCERS:
+                return 0
+            if all(w.lower().endswith("ing") for w in run):
                 return 0
             adjectival = sum(1 for w in run if _looks_adjectival(w))
             return 1 if adjectival >= max(2, (len(run) + 1) // 2) else 0
@@ -119,13 +214,27 @@ def _adjective_stacks(text: str, min_run: int = 3) -> int:
                 continue
             # A word joins the run if it looks adjectival, or if a comma just
             # coordinated it onto an existing run.
-            if _looks_adjectival(tok) or (preceded_by_comma and run):
+            # A comma coordinates modifiers, but a conjunction or determiner
+            # is not one -- letting those join dragged noun lists into runs.
+            joins_by_comma = preceded_by_comma and run and tok.lower() not in _ADJ_STOP
+            if _looks_adjectival(tok) or joins_by_comma:
                 run.append(tok)
             else:
-                stacks += flush(run)
+                # `tok` terminated the run, so it is the head noun. It is
+                # non-adjectival by construction (an adjectival token would
+                # have joined instead).
+                stacks += flush(run, has_head=True, introducer=previous)
+                previous = tok
                 run = []
             preceded_by_comma = False
-        stacks += flush(run)
+
+        # The sentence ended mid-run. If the run is long enough, its own last
+        # member is the head noun ("long, low, filthy building"); otherwise
+        # there is nothing being modified.
+        if len(run) > min_run:
+            stacks += flush(run[:-1], has_head=True, introducer=previous)
+        else:
+            stacks += flush(run, has_head=False, introducer=previous)
     return stacks
 
 
@@ -180,7 +289,7 @@ def _classify_band(segment: str, spec: StyleSpec) -> str:
     mean_len = statistics.fmean(lengths) if lengths else 0.0
     adj_rate = _adjective_stacks(segment) / max(n / 100, 0.5)
     specifics = _count_specifics(segment) / max(n / 100, 0.5)
-    excite = len(_EXCLAIM.findall(segment)) + len(_ALLCAPS.findall(segment))
+    excite = len(_EXCLAIM.findall(segment)) + len(_SHOUT_RUN.findall(segment))
 
     # Structural signals. Weighted to roughly match cue magnitudes so neither
     # source dominates the other.
@@ -208,16 +317,44 @@ def _classify_band(segment: str, spec: StyleSpec) -> str:
     return max(scores, key=lambda b: scores[b])
 
 
+def _count_proper_nouns(text: str) -> int:
+    """Capitalized words that are not merely sentence-initial."""
+    total = 0
+    for sentence in _sentences(text):
+        # Drop the opening token structurally: any leading quote or bracket
+        # means a lookbehind cannot tell an opener from a name.
+        stripped = sentence.lstrip("\"'([{ \t")
+        first = _WORD.search(stripped)
+        for match in _CAPITALIZED.finditer(stripped):
+            if first is not None and match.start() == first.start():
+                continue
+            total += 1
+    return total
+
+
 def _count_specifics(text: str) -> int:
-    """Hard anchoring detail: numbers, money, times, measures, proper nouns."""
-    return (
-        len(_CURRENCY.findall(text))
-        + len(_TIME.findall(text))
-        + len(_PERCENT.findall(text))
-        + len(_MEASURE.findall(text))
-        + len(_NUMERAL.findall(text))
-        + len(_PROPER.findall(text))
-    )
+    """Hard anchoring detail: distinct numbers, money, times, measures, names.
+
+    Counts non-overlapping spans. The numeric patterns deliberately overlap --
+    "$4.3 million at 4:15" is matched by _CURRENCY, _MEASURE, _TIME *and*
+    _NUMERAL -- so summing the per-pattern counts inflated density by roughly
+    2-3x and made the anchoring gate far easier to clear than intended.
+    """
+    spans: list[tuple[int, int]] = []
+    for pattern in (_CURRENCY, _TIME, _PERCENT, _MEASURE, _NUMERAL):
+        spans.extend(m.span() for m in pattern.finditer(text))
+
+    spans.sort()
+    distinct = 0
+    covered_to = -1
+    for start, end in spans:
+        if start >= covered_to:      # a genuinely new fact
+            distinct += 1
+            covered_to = end
+        elif end > covered_to:       # extends one already counted
+            covered_to = end
+
+    return distinct + _count_proper_nouns(text)
 
 
 # --- report ----------------------------------------------------------------
@@ -350,7 +487,7 @@ def score_text(text: str, spec: StyleSpec | None = None) -> StyleReport:
         adjective_stack_rate=_adjective_stacks(text) / per_100,
         em_dash_rate=len(_EM_DASH.findall(text)) / per_100,
         ellipsis_rate=len(_ELLIPSIS.findall(text)) / per_100,
-        allcaps_rate=len(_ALLCAPS.findall(text)) / per_100,
+        allcaps_rate=len(_ALLCAPS_TOKEN.findall(text)) / per_100,
         exclamation_rate=len(_EXCLAIM.findall(text)) / per_100,
         tic_count=tic_count,
         tic_rate_per_500=tic_rate,

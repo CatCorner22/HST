@@ -28,4 +28,4 @@ gonzo = "gonzo.cli:main"
 include = ["gonzo*"]
 
 [tool.setuptools.package-data]
-gonzo = ["style/*.md", "style/*.yaml"]
+gonzo = ["style/*.md", "style/*.yaml", "web/*"]
