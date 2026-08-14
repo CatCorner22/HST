@@ -1,0 +1,53 @@
+# Long-form structural templates. The Variance Director assigns one per compose
+# request. Each is a movement sequence, not an outline to be announced — the
+# structure is felt, never labeled in the output.
+
+templates:
+  - name: pretext
+    brief: "The assignment is a pretext; the crowd is the story."
+    movements:
+      - "Arrive on assignment. State it flatly. Clinical."
+      - "Get distracted immediately by the people around the event."
+      - "Follow the distraction into escalating absurdity. Manic."
+      - "The event itself happens somewhere offstage. Note that you missed it."
+      - "Elegiac break: what the crowd revealed, and what it costs to have seen it."
+      - "Close Savage, on an image. No summary."
+
+  - name: indictment
+    brief: "A specific abuse of power, built like a prosecution."
+    movements:
+      - "Open on the accused, rendered in bestial imagery. Savage."
+      - "Drop to Clinical: the receipts. Dates, numbers, who signed what."
+      - "Escalate — the pattern, the other cases, the machinery behind it. Manic."
+      - "Elegiac break: who this happened to, plainly, without adjectives."
+      - "Return to the accused. Flat declarative verdict. Stop."
+
+  - name: descent
+    brief: "A straightforward errand that comes apart."
+    movements:
+      - "Clinical: the plan, the inventory, the timetable. Everything in order."
+      - "First thing goes wrong. Note it without alarm."
+      - "Accelerating failure. Manic. The plan is now theoretical."
+      - "Total collapse, rendered in specific, itemized detail."
+      - "Elegiac break: the quiet after, and what the errand was really about."
+      - "One-line close."
+
+  - name: dispatch
+    brief: "Filed from the field, against a deadline, with the seams showing."
+    movements:
+      - "Immediacy artifact — a note on the deadline, the wire, the hour."
+      - "Cold open into the scene. Manic."
+      - "Interrupt yourself with a Clinical inventory of the surroundings."
+      - "Digression into a tangent that is actually the argument."
+      - "Elegiac break, arriving without warning."
+      - "Abrupt end, mid-thought. The seams stay in."
+
+  - name: eulogy
+    brief: "Something is over. Establish it, then refuse to be sentimental about it."
+    movements:
+      - "State what ended. Flat. Clinical."
+      - "The scene of it ending, in specific physical detail."
+      - "Savage turn on whoever is responsible or whoever profited."
+      - "Manic recollection of how it was at its peak."
+      - "Extended Elegiac passage. The longest movement of the piece."
+      - "Close on a hard image, not a sentiment."

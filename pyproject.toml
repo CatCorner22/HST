@@ -1,0 +1,31 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "gonzo-style-engine"
+version = "0.1.0"
+description = "A prose engine in the gonzo tradition of American literary journalism"
+readme = "README.md"
+requires-python = ">=3.11"
+license = { text = "MIT" }
+
+dependencies = [
+  "anthropic>=0.60",
+  "pydantic>=2.0",
+  "pyyaml>=6.0",
+  "fastapi>=0.110",
+  "uvicorn[standard]>=0.27",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8.0"]
+
+[project.scripts]
+gonzo = "gonzo.cli:main"
+
+[tool.setuptools.packages.find]
+include = ["gonzo*"]
+
+[tool.setuptools.package-data]
+gonzo = ["style/*.md", "style/*.yaml"]

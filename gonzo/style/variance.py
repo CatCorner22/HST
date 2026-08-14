@@ -1,0 +1,132 @@
+"""The Variance Director — deterministic creative variance without `temperature`.
+
+`temperature`, `top_p`, and `top_k` are rejected with a 400 on Claude Opus 5,
+so there is no sampling knob to turn. Variance is engineered instead: each
+request draws a seeded directive fixing the opening move, the register bands to
+occupy, the imagery domain, and (for long-form) the structural template.
+
+This is better than a temperature dial in three ways. It is reproducible — same
+seed, same directive. It is inspectable — every generation logs what it was told
+to do. And it varies the axes that actually matter for this voice, rather than
+jittering token probabilities and hoping.
+
+The rendered directive is appended to `messages`, never to `system`, so the
+cached style-spec prefix stays byte-identical across every request.
+"""
+
+from __future__ import annotations
+
+import hashlib
+import random
+from dataclasses import asdict, dataclass
+
+from gonzo.style.spec import StyleSpec, load_spec
+
+
+@dataclass(frozen=True)
+class VarianceDirective:
+    """One request's stylistic assignment."""
+
+    seed: int
+    opening_move: str
+    opening_brief: str
+    dominant_band: str
+    contrast_band: str
+    imagery_domain: str
+    imagery_brief: str
+    template: str | None = None
+    template_movements: tuple[str, ...] = ()
+
+    def render(self) -> str:
+        """Render as an instruction block for the message stream."""
+        lines = [
+            "<style_directive>",
+            "Stylistic assignment for this piece. Follow it. Never mention it, "
+            "name it, or let its structure show as headings or labels.",
+            "",
+            f"OPENING MOVE — {self.opening_move}: {self.opening_brief}",
+            f"DOMINANT REGISTER — {self.dominant_band}",
+            f"REQUIRED CONTRAST REGISTER — {self.contrast_band} "
+            "(you must genuinely occupy this band somewhere in the piece, not "
+            "gesture at it)",
+            f"IMAGERY DOMAIN — {self.imagery_domain}: {self.imagery_brief} "
+            "(draw your figurative language primarily from here)",
+        ]
+
+        if self.template:
+            lines += ["", f"STRUCTURE — {self.template}. Move through these beats in order:"]
+            lines += [f"  {i}. {m}" for i, m in enumerate(self.template_movements, 1)]
+
+        lines += ["</style_directive>"]
+        return "\n".join(lines)
+
+    def to_dict(self) -> dict:
+        return asdict(self)
+
+
+class VarianceDirector:
+    """Draws seeded stylistic directives."""
+
+    def __init__(self, spec: StyleSpec | None = None) -> None:
+        self.spec = spec or load_spec()
+
+    @staticmethod
+    def seed_from(text: str) -> int:
+        """Derive a stable seed from arbitrary text.
+
+        Used when no explicit seed is given, so repeating a prompt reproduces
+        its output while different prompts diverge.
+        """
+        digest = hashlib.sha256(text.encode("utf-8")).digest()
+        return int.from_bytes(digest[:8], "big")
+
+    def draw(
+        self,
+        *,
+        seed: int | None = None,
+        basis: str = "",
+        longform: bool = False,
+    ) -> VarianceDirective:
+        """Draw a directive.
+
+        `seed` wins if given; otherwise the seed is derived from `basis` so the
+        same assignment reproduces. Passing neither draws at random.
+        """
+        if seed is None:
+            seed = self.seed_from(basis) if basis else random.getrandbits(64)
+
+        rng = random.Random(seed)
+
+        move = rng.choice(self.spec.opening_moves)
+        domain = rng.choice(self.spec.imagery_domains)
+
+        # The Elegiac band is the hardest to write and the most-skipped feature
+        # of the style, so it is never the dominant band — it earns its force by
+        # arriving as contrast. Long-form always mandates it, because a filed
+        # piece without the break reads as pastiche.
+        candidates = [b for b in self.spec.band_names if b != "elegiac"]
+        dominant = rng.choice(candidates)
+
+        if longform:
+            contrast = "elegiac"
+        else:
+            contrast = rng.choice([b for b in self.spec.band_names if b != dominant])
+
+        template_name: str | None = None
+        movements: tuple[str, ...] = ()
+        if longform:
+            template = rng.choice(self.spec.templates)
+            template_name = template["name"]
+            movements = tuple(template["movements"])
+
+        return VarianceDirective(
+            seed=seed,
+            opening_move=move["name"],
+            opening_brief=move["brief"],
+            dominant_band=dominant,
+            contrast_band=contrast,
+            imagery_domain=domain["name"],
+            imagery_brief=domain["brief"],
+            template=template_name,
+            template_movements=movements,
+        )
