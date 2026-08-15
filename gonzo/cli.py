@@ -13,7 +13,10 @@ from gonzo.client import (
     GonzoClient,
     RefusalError,
     StreamReset,
+    WireSearch,
+    WireSources,
 )
+from gonzo.config import WIRE_DEFAULT
 from gonzo.modes.chat import ChatSession
 from gonzo.modes.compose import Composer
 from gonzo.modes.critique import Critic
@@ -34,9 +37,23 @@ def _read_input(source: str | None) -> str:
     return sys.stdin.read()
 
 
+def _print_sources(sources, out=sys.stderr) -> None:
+    if not sources:
+        return
+    print("\n  off the wire:", file=out)
+    for i, s in enumerate(sources, 1):
+        title = f" — {s.title}" if s.title else ""
+        print(f"    [{i}] {s.url}{title}", file=out)
+
+
 def cmd_chat(args: argparse.Namespace) -> int:
-    session = ChatSession(client=GonzoClient(), seed=args.seed)
-    print("Gonzo engine. Ctrl-D or /quit to exit, /reset to clear, /seed to show.\n")
+    wire = WIRE_DEFAULT if args.wire is None else args.wire
+    session = ChatSession(client=GonzoClient(), seed=args.seed, wire=wire)
+    status = "wire on — searches are billed" if wire else "wire off"
+    print(
+        f"Gonzo engine ({status}). Ctrl-D or /quit to exit, /reset to clear, "
+        "/seed to show, /wire to toggle search.\n"
+    )
 
     while True:
         try:
@@ -56,6 +73,10 @@ def cmd_chat(args: argparse.Namespace) -> int:
             d = session.last_directive
             print(f"(seed {d.seed}, {d.opening_move}/{d.dominant_band}/{d.imagery_domain})\n" if d else "(no turn yet)\n")
             continue
+        if line == "/wire":
+            session.wire = not session.wire
+            print(f"(wire {'on — searches are billed' if session.wire else 'off'})\n")
+            continue
 
         print()
         try:
@@ -64,15 +85,22 @@ def cmd_chat(args: argparse.Namespace) -> int:
                     # A fallback superseded what we just printed. A terminal
                     # cannot un-print, so mark the boundary plainly.
                     print("\n[the previous model declined; restarting]\n", flush=True)
+                elif isinstance(chunk, WireSearch):
+                    label = f": {chunk.query}" if chunk.query else ""
+                    print(f"[checking the wire{label}]", file=sys.stderr, flush=True)
+                elif isinstance(chunk, WireSources):
+                    pass  # printed after the reply, from session.last_sources
                 else:
                     print(chunk, end="", flush=True)
         except (RefusalError, EmptyCompletionError) as exc:
             print(f"\n[{exc}]", file=sys.stderr)
+        _print_sources(session.last_sources)
         print("\n")
 
 
 def cmd_write(args: argparse.Namespace) -> int:
-    composer = Composer(client=GonzoClient(), use_judge=not args.no_judge)
+    wire = WIRE_DEFAULT if args.wire is None else args.wire
+    composer = Composer(client=GonzoClient(), use_judge=not args.no_judge, wire=wire)
     try:
         draft = composer.compose(args.assignment, seed=args.seed, revise=not args.no_revise)
     except RefusalError as exc:
@@ -85,6 +113,7 @@ def cmd_write(args: argparse.Namespace) -> int:
             "revision": draft.revision,
             "directive": draft.directive.to_dict(),
             "report": draft.report.to_dict(),
+            "sources": [s.to_dict() for s in draft.sources],
         }, indent=2))
         # Same contract in both output formats: a draft that misses the bar
         # exits non-zero whether or not --json was passed.
@@ -100,6 +129,7 @@ def cmd_write(args: argparse.Namespace) -> int:
             file=sys.stderr,
         )
         print(draft.report.summary(), file=sys.stderr)
+        _print_sources(draft.sources)
     return 0 if draft.report.passed else 1
 
 
@@ -156,8 +186,21 @@ def build_parser() -> argparse.ArgumentParser:
     )
     sub = parser.add_subparsers(dest="command", required=True)
 
+    def wire_flags(p: argparse.ArgumentParser) -> None:
+        # Tri-state: unset falls back to the GONZO_WIRE env default, so a flag
+        # can force either direction regardless of the environment.
+        p.add_argument(
+            "--wire", action="store_true", dest="wire", default=None,
+            help="enable web search (billed per search); the narrator cites what it pulls",
+        )
+        p.add_argument(
+            "--no-wire", action="store_false", dest="wire",
+            help="disable web search even if GONZO_WIRE is set",
+        )
+
     p = sub.add_parser("chat", help="conversational mode")
     p.add_argument("--seed", type=int, help="reproducible variance")
+    wire_flags(p)
     p.set_defaults(func=cmd_chat)
 
     p = sub.add_parser("write", help="compose a long-form piece")
@@ -167,6 +210,7 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--no-revise", action="store_true", help="return the first draft")
     p.add_argument("--json", action="store_true", help="emit JSON")
     p.add_argument("-q", "--quiet", action="store_true", help="prose only")
+    wire_flags(p)
     p.set_defaults(func=cmd_write)
 
     p = sub.add_parser("transfer", help="restyle text, preserving its facts")

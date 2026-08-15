@@ -28,6 +28,9 @@
       <div class="row">
         <button type="submit" class="primary">Send</button>
         <button type="button" id="chat-reset">Reset</button>
+        <label class="inline" title="Attaches live web search. Each search is billed by the API.">
+          <input type="checkbox" id="chat-wire"> wire (web search, billed)
+        </label>
         <span id="chat-directive" class="directive"></span>
       </div>
     </form>
@@ -41,6 +44,9 @@
       <button id="compose-go" class="primary">File the piece</button>
       <label class="inline"><input type="checkbox" id="compose-judge" checked> rubric judge</label>
       <label class="inline"><input type="checkbox" id="compose-revise" checked> revise until it passes</label>
+      <label class="inline" title="Attaches live web search. Each search is billed by the API.">
+        <input type="checkbox" id="compose-wire"> wire (web search, billed)
+      </label>
       <label class="inline">seed <input type="number" id="compose-seed" placeholder="auto"></label>
     </div>
     <div id="compose-out" class="output"></div>

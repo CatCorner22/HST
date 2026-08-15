@@ -16,10 +16,15 @@ Three things this centralizes:
 
 3. **No sampling parameters.** `temperature`/`top_p`/`top_k` are rejected with a
    400 on Opus 5. Variance comes from `gonzo.style.variance` instead.
+
+The wire (server-side web search) adds two call shapes on top: a turn can
+stop with `pause_turn` and expect its partial content back to resume, and a
+searched reply carries citations that are surfaced as `WireSource` records.
 """
 
 from __future__ import annotations
 
+import json
 import logging
 from collections.abc import Iterator
 from dataclasses import dataclass, field
@@ -28,7 +33,13 @@ from typing import Any
 import anthropic
 from pydantic import ValidationError
 
-from gonzo.config import FALLBACK_BETA, MODEL, MODES, resolve_api_key
+from gonzo.config import (
+    FALLBACK_BETA,
+    MODEL,
+    MODES,
+    WIRE_MAX_CONTINUATIONS,
+    resolve_api_key,
+)
 
 log = logging.getLogger(__name__)
 
@@ -64,6 +75,41 @@ class StreamReset:
 
 
 STREAM_RESET = StreamReset()
+
+
+@dataclass(frozen=True)
+class WireSource:
+    """One source the model actually cited from a web search."""
+
+    url: str
+    title: str
+
+    def to_dict(self) -> dict[str, str]:
+        return {"url": self.url, "title": self.title}
+
+
+@dataclass(frozen=True)
+class WireSearch:
+    """Yielded by `stream()` when the model pulls the wire.
+
+    Emitted once the search query is fully formed, before results return, so
+    a UI can show what is being checked while the search runs. `query` is ""
+    when the streamed tool input could not be parsed — treat that as "a
+    search is happening", not an error.
+    """
+
+    query: str
+
+
+@dataclass(frozen=True)
+class WireSources:
+    """Yielded once at the end of a wire-enabled stream: every source cited.
+
+    Emitted only when the request carried the web search tool. An empty list
+    is meaningful — the wire was available and the reply cited nothing.
+    """
+
+    sources: tuple[WireSource, ...]
 
 
 class StructuredOutputError(RuntimeError):
@@ -110,20 +156,38 @@ class Usage:
     output_tokens: int = 0
     cache_read: int = 0
     cache_write: int = 0
+    searches: int = 0
+
+    @staticmethod
+    def _int(value: Any) -> int:
+        # Search counts ride under usage.server_tool_use, which is absent on
+        # wireless responses (and a Mock in tests) — count only a real int.
+        return value if isinstance(value, int) else 0
 
     @classmethod
     def from_response(cls, usage: Any) -> "Usage":
+        server_tools = getattr(usage, "server_tool_use", None)
         return cls(
-            input_tokens=getattr(usage, "input_tokens", 0) or 0,
-            output_tokens=getattr(usage, "output_tokens", 0) or 0,
-            cache_read=getattr(usage, "cache_read_input_tokens", 0) or 0,
-            cache_write=getattr(usage, "cache_creation_input_tokens", 0) or 0,
+            input_tokens=cls._int(getattr(usage, "input_tokens", 0)),
+            output_tokens=cls._int(getattr(usage, "output_tokens", 0)),
+            cache_read=cls._int(getattr(usage, "cache_read_input_tokens", 0)),
+            cache_write=cls._int(getattr(usage, "cache_creation_input_tokens", 0)),
+            searches=cls._int(getattr(server_tools, "web_search_requests", 0)),
         )
 
+    def add(self, other: "Usage") -> None:
+        """Fold another round's usage in — a paused turn bills per round."""
+        self.input_tokens += other.input_tokens
+        self.output_tokens += other.output_tokens
+        self.cache_read += other.cache_read
+        self.cache_write += other.cache_write
+        self.searches += other.searches
+
     def __str__(self) -> str:
+        wire = f" searches={self.searches}" if self.searches else ""
         return (
             f"in={self.input_tokens} out={self.output_tokens} "
-            f"cache_read={self.cache_read} cache_write={self.cache_write}"
+            f"cache_read={self.cache_read} cache_write={self.cache_write}{wire}"
         )
 
 
@@ -134,6 +198,7 @@ class Completion:
     text: str
     usage: Usage = field(default_factory=Usage)
     model: str = MODEL
+    sources: list[WireSource] = field(default_factory=list)
 
 
 def _system_blocks(system_prompt: str) -> list[dict[str, Any]]:
@@ -145,6 +210,22 @@ def _system_blocks(system_prompt: str) -> list[dict[str, Any]]:
             "cache_control": {"type": "ephemeral"},
         }
     ]
+
+
+def _parse_query(fragments: list[str]) -> str:
+    """Reassemble a search query from streamed partial-JSON fragments.
+
+    Empty or unparseable input is not an error -- the search still ran
+    server-side; the UI just cannot show what it asked.
+    """
+    raw = "".join(fragments).strip()
+    if not raw:
+        return ""
+    try:
+        query = json.loads(raw).get("query", "")
+    except (json.JSONDecodeError, AttributeError):
+        return ""
+    return query if isinstance(query, str) else ""
 
 
 def _credentials_error(exc: TypeError) -> Exception:
@@ -164,28 +245,57 @@ def _check_refusal(response: Any) -> None:
     )
 
 
-def _text_of(response: Any) -> str:
-    """Concatenate the text blocks belonging to the model that actually answered.
+def _standing_blocks(blocks: list[Any]) -> list[Any]:
+    """The content blocks belonging to the model that actually answered.
 
     Every request opts into server-side fallbacks, so when one fires the API
     returns a single message whose `content` is
 
         [<declining model's abandoned blocks>, fallback, <replacement's blocks>]
 
-    with `stop_reason == "end_turn"` -- a normal success. Concatenating every
-    text block would glue the refused half-sentence onto the replacement's
-    fresh opening and hand it back as a clean result. One `fallback` block
-    appears per hop that ran and declined, so text after the *last* one is the
-    reply that stands.
+    with `stop_reason == "end_turn"` -- a normal success. One `fallback` block
+    appears per hop that ran and declined, so everything after the *last* one
+    is the reply that stands.
     """
-    blocks = list(getattr(response, "content", None) or [])
     last_hop = max(
         (i for i, b in enumerate(blocks) if getattr(b, "type", None) == "fallback"),
         default=-1,
     )
+    return blocks[last_hop + 1 :]
+
+
+def _text_of_blocks(blocks: list[Any]) -> str:
+    """Concatenate the standing text. Skips the wire's tool-use and result
+    blocks, which interleave with text on a searched turn -- concatenating
+    everything would splice a refused half-sentence (or raw search plumbing)
+    into the reply."""
     return "".join(
-        b.text for b in blocks[last_hop + 1 :] if getattr(b, "type", None) == "text"
+        b.text for b in _standing_blocks(blocks) if getattr(b, "type", None) == "text"
     ).strip()
+
+
+def _text_of(response: Any) -> str:
+    return _text_of_blocks(list(getattr(response, "content", None) or []))
+
+
+def _sources_of_blocks(blocks: list[Any]) -> list[WireSource]:
+    """Every web source the standing reply actually cited, in first-citation
+    order, deduplicated by URL. Citations ride on text blocks; the raw
+    `web_search_tool_result` blocks list everything a search *returned*, which
+    is not the same thing as what the reply *used* -- only citations prove
+    use, so only citations count."""
+    seen: dict[str, WireSource] = {}
+    for block in _standing_blocks(blocks):
+        if getattr(block, "type", None) != "text":
+            continue
+        for citation in getattr(block, "citations", None) or []:
+            if getattr(citation, "type", None) != "web_search_result_location":
+                continue
+            url = getattr(citation, "url", None)
+            if not url or url in seen:
+                continue
+            seen[url] = WireSource(url=url, title=getattr(citation, "title", "") or "")
+    return list(seen.values())
 
 
 class GonzoClient:
@@ -207,9 +317,10 @@ class GonzoClient:
         messages: list[dict[str, Any]],
         mode: str,
         model: str | None = None,
+        tools: list[dict[str, Any]] | None = None,
     ) -> dict[str, Any]:
         cfg = MODES[mode]
-        return {
+        kwargs = {
             "model": model or self.model,
             "max_tokens": cfg.max_tokens,
             "system": _system_blocks(system_prompt),
@@ -218,6 +329,14 @@ class GonzoClient:
             "betas": [FALLBACK_BETA],
             "fallbacks": "default",
         }
+        if tools:
+            # Tools sit before `system` in the cache prefix, so a request with
+            # the wire and one without hold separate cache entries. Callers keep
+            # the flag stable per session; leaving the key out entirely when
+            # unused keeps wireless requests byte-identical to the pre-wire
+            # engine.
+            kwargs["tools"] = tools
+        return kwargs
 
     # -- generation --------------------------------------------------------
 
@@ -228,6 +347,7 @@ class GonzoClient:
         messages: list[dict[str, Any]],
         mode: str = "chat",
         model: str | None = None,
+        tools: list[dict[str, Any]] | None = None,
     ) -> Completion:
         """Generate and return the whole result.
 
@@ -237,19 +357,46 @@ class GonzoClient:
         obvious `messages.create()` raises `ValueError` before sending
         anything. Streaming and accumulating sidesteps the timeout guard
         entirely and costs the caller nothing.
+
+        A turn that pulls the wire can come back with `stop_reason ==
+        "pause_turn"`: the API handing back a half-finished turn to resume.
+        The recipe is to append the partial content verbatim as an assistant
+        message and re-send with the same tools; the rounds concatenate into
+        one logical reply, so text and citations are gathered across all of
+        them. Bounded, because an unbounded resume loop with a metered tool
+        is how a bug becomes an invoice.
         """
-        kwargs = self._request_kwargs(
-            system_prompt=system_prompt, messages=messages, mode=mode, model=model
-        )
-        try:
-            with self._client.beta.messages.stream(**kwargs) as stream:
-                response = stream.get_final_message()
-        except TypeError as exc:
-            raise _credentials_error(exc) from exc
+        convo = list(messages)
+        blocks: list[Any] = []
+        usage = Usage()
+        response: Any = None
 
-        _check_refusal(response)
+        for _ in range(WIRE_MAX_CONTINUATIONS + 1):
+            kwargs = self._request_kwargs(
+                system_prompt=system_prompt, messages=convo, mode=mode,
+                model=model, tools=tools,
+            )
+            try:
+                with self._client.beta.messages.stream(**kwargs) as stream:
+                    response = stream.get_final_message()
+            except TypeError as exc:
+                raise _credentials_error(exc) from exc
 
-        text = _text_of(response)
+            _check_refusal(response)
+            blocks.extend(getattr(response, "content", None) or [])
+            usage.add(Usage.from_response(response.usage))
+
+            paused_content = getattr(response, "content", None)
+            if getattr(response, "stop_reason", None) != "pause_turn" or not paused_content:
+                break
+            convo.append({"role": "assistant", "content": paused_content})
+        else:
+            log.warning(
+                "turn still paused after %d continuations; returning what stands",
+                WIRE_MAX_CONTINUATIONS,
+            )
+
+        text = _text_of_blocks(blocks)
         if not text:
             # A thinking-only or truncated response yields no prose. Returning
             # it as a success would write an empty assistant turn into history
@@ -258,8 +405,9 @@ class GonzoClient:
 
         return Completion(
             text=text,
-            usage=Usage.from_response(response.usage),
+            usage=usage,
             model=getattr(response, "model", self.model),
+            sources=_sources_of_blocks(blocks) if tools else [],
         )
 
     def stream(
@@ -269,7 +417,8 @@ class GonzoClient:
         messages: list[dict[str, Any]],
         mode: str = "chat",
         model: str | None = None,
-    ) -> Iterator[str | StreamReset]:
+        tools: list[dict[str, Any]] | None = None,
+    ) -> Iterator[str | StreamReset | WireSearch | WireSources]:
         """Streaming generation, yielding text deltas.
 
         Iterates typed events rather than `text_stream` so hop boundaries stay
@@ -280,28 +429,73 @@ class GonzoClient:
         what they have shown. A caller that ignores the sentinel degrades to
         the old spliced behavior rather than crashing.
 
-        The final message is inspected after the stream drains, so a refusal
+        With the wire attached, two more event kinds appear: a `WireSearch`
+        as each search query finishes forming (the query streams in as
+        partial JSON, so it is parsed at the block boundary), and one
+        `WireSources` after the turn completes, carrying every source the
+        reply cited. A `pause_turn` stop is resumed transparently -- the
+        continuation rounds read as one uninterrupted stream, no reset.
+
+        The final message is inspected after each round drains, so a refusal
         still raises instead of returning a silent partial.
         """
-        kwargs = self._request_kwargs(
-            system_prompt=system_prompt, messages=messages, mode=mode, model=model
-        )
-        try:
-            with self._client.beta.messages.stream(**kwargs) as stream:
-                for event in stream:
-                    kind = getattr(event, "type", None)
-                    if kind == "content_block_start":
-                        if getattr(event.content_block, "type", None) == "fallback":
-                            yield STREAM_RESET
-                    elif kind == "content_block_delta":
-                        if getattr(event.delta, "type", None) == "text_delta":
-                            yield event.delta.text
-                final = stream.get_final_message()
-        except TypeError as exc:
-            raise _credentials_error(exc) from exc
+        convo = list(messages)
+        blocks: list[Any] = []
+        usage = Usage()
 
-        _check_refusal(final)
-        log.debug("stream usage: %s", Usage.from_response(final.usage))
+        for _ in range(WIRE_MAX_CONTINUATIONS + 1):
+            kwargs = self._request_kwargs(
+                system_prompt=system_prompt, messages=convo, mode=mode,
+                model=model, tools=tools,
+            )
+            # Partial tool-input JSON per in-flight search block, keyed by
+            # content index. Reset per round: indices restart in each round.
+            pending: dict[int, list[str]] = {}
+            try:
+                with self._client.beta.messages.stream(**kwargs) as stream:
+                    for event in stream:
+                        kind = getattr(event, "type", None)
+                        if kind == "content_block_start":
+                            block = event.content_block
+                            if getattr(block, "type", None) == "fallback":
+                                yield STREAM_RESET
+                            elif (
+                                getattr(block, "type", None) == "server_tool_use"
+                                and getattr(block, "name", None) == "web_search"
+                            ):
+                                pending[event.index] = []
+                        elif kind == "content_block_delta":
+                            delta = event.delta
+                            if getattr(delta, "type", None) == "text_delta":
+                                yield delta.text
+                            elif (
+                                getattr(delta, "type", None) == "input_json_delta"
+                                and event.index in pending
+                            ):
+                                pending[event.index].append(delta.partial_json)
+                        elif kind == "content_block_stop" and getattr(event, "index", None) in pending:
+                            yield WireSearch(query=_parse_query(pending.pop(event.index)))
+                    final = stream.get_final_message()
+            except TypeError as exc:
+                raise _credentials_error(exc) from exc
+
+            _check_refusal(final)
+            blocks.extend(getattr(final, "content", None) or [])
+            usage.add(Usage.from_response(final.usage))
+
+            paused_content = getattr(final, "content", None)
+            if getattr(final, "stop_reason", None) != "pause_turn" or not paused_content:
+                break
+            convo.append({"role": "assistant", "content": paused_content})
+        else:
+            log.warning(
+                "stream still paused after %d continuations; ending with what stands",
+                WIRE_MAX_CONTINUATIONS,
+            )
+
+        log.debug("stream usage: %s", usage)
+        if tools:
+            yield WireSources(sources=tuple(_sources_of_blocks(blocks)))
 
     def parse(
         self,

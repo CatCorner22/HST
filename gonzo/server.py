@@ -12,8 +12,15 @@ from fastapi.responses import FileResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
-from gonzo.client import CredentialsError, GonzoClient, RefusalError, StreamReset
-from gonzo.config import WEB_DIR
+from gonzo.client import (
+    CredentialsError,
+    GonzoClient,
+    RefusalError,
+    StreamReset,
+    WireSearch,
+    WireSources,
+)
+from gonzo.config import WEB_DIR, WIRE_DEFAULT, WIRE_MAX_SEARCHES
 from gonzo.modes.chat import ChatSession
 from gonzo.modes.compose import Composer
 from gonzo.modes.critique import Critic
@@ -47,6 +54,10 @@ def _session(session_id: str | None) -> tuple[str, ChatSession]:
 class ChatRequest(BaseModel):
     message: str = Field(min_length=1)
     session_id: str | None = None
+    # None leaves the session's wire setting alone; true/false sets it. The
+    # UI sends the toggle's state each turn, so a mid-session flip works (at
+    # the cost of one prompt-cache rewrite — see ChatSession).
+    wire: bool | None = None
 
 
 class ComposeRequest(BaseModel):
@@ -54,6 +65,7 @@ class ComposeRequest(BaseModel):
     seed: int | None = None
     judge: bool = True
     revise: bool = True
+    wire: bool = False
 
 
 class TransferRequest(BaseModel):
@@ -78,6 +90,7 @@ def health() -> dict[str, Any]:
         "bands": spec.band_names,
         "templates": [t["name"] for t in spec.templates],
         "sessions": len(_SESSIONS),
+        "wire": {"default": WIRE_DEFAULT, "max_searches": WIRE_MAX_SEARCHES},
     }
 
 
@@ -89,6 +102,8 @@ def _sse(event: str, data: Any) -> str:
 def chat(req: ChatRequest) -> StreamingResponse:
     """Stream a reply as Server-Sent Events."""
     session_id, session = _session(req.session_id)
+    if req.wire is not None:
+        session.wire = req.wire
 
     def generate():
         yield _sse("session", {"session_id": session_id})
@@ -96,6 +111,10 @@ def chat(req: ChatRequest) -> StreamingResponse:
             for chunk in session.stream(req.message):
                 if isinstance(chunk, StreamReset):
                     yield _sse("reset", {})
+                elif isinstance(chunk, WireSearch):
+                    yield _sse("wire", {"query": chunk.query})
+                elif isinstance(chunk, WireSources):
+                    pass  # folded into "done" below via session.last_sources
                 else:
                     yield _sse("delta", {"text": chunk})
         except RefusalError as exc:
@@ -110,7 +129,10 @@ def chat(req: ChatRequest) -> StreamingResponse:
             return
 
         directive = session.last_directive
-        yield _sse("done", {"directive": directive.to_dict() if directive else None})
+        yield _sse("done", {
+            "directive": directive.to_dict() if directive else None,
+            "sources": [s.to_dict() for s in session.last_sources],
+        })
 
     return StreamingResponse(
         generate(),
@@ -121,7 +143,7 @@ def chat(req: ChatRequest) -> StreamingResponse:
 
 @app.post("/api/compose")
 def compose(req: ComposeRequest) -> dict[str, Any]:
-    composer = Composer(client=_client(), use_judge=req.judge)
+    composer = Composer(client=_client(), use_judge=req.judge, wire=req.wire)
     try:
         draft = composer.compose(req.assignment, seed=req.seed, revise=req.revise)
     except CredentialsError as exc:
@@ -133,6 +155,7 @@ def compose(req: ComposeRequest) -> dict[str, Any]:
         "revision": draft.revision,
         "directive": draft.directive.to_dict(),
         "report": draft.report.to_dict(),
+        "sources": [s.to_dict() for s in draft.sources],
     }
 
 

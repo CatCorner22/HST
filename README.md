@@ -44,7 +44,9 @@ An `ant auth login` profile works instead of a key — the SDK finds it on disk.
 
 ```bash
 gonzo chat                                    # conversation, streaming
+gonzo chat --wire                             # same, with live web search
 gonzo write "the county zoning board meeting" # long-form, with revision loop
+gonzo write --wire "the September jobs report"  # researched long-form
 gonzo transfer draft.txt                      # restyle, preserving every fact
 gonzo score piece.txt                         # measure any prose
 gonzo score --no-judge piece.txt              # metrics only, no API call
@@ -52,6 +54,20 @@ gonzo serve                                   # web UI at http://127.0.0.1:8000
 ```
 
 Every command takes `--seed N` for reproducible output.
+
+### The wire
+
+By default the narrator is an archivist with a cutoff: its knowledge is a file
+with an end date, it says so plainly, and it never offers a search it cannot
+run. `--wire` (or `GONZO_WIRE=1`, or the checkbox in the web UI) installs a
+real one — the Anthropic server-side web search tool. With the wire on, the
+persona swaps its capability section to match: the correspondent pulls the
+wire for load-bearing facts past its file's end date, attributes what it
+finds in the prose ("the AP had it that…"), and the engine lists the cited
+sources under the reply. Searches are billed by the API on top of token cost,
+which is why it is opt-in. The two personas never blend: the narrator's
+claims about its machinery are true in both configurations, and a test
+enforces it.
 
 ## The four modes
 
@@ -107,7 +123,7 @@ rule that nothing dynamic may touch the system prompt — a test enforces it.
 ## Tests
 
 ```bash
-pytest              # 125 offline tests, no API key needed
+pytest              # 157 offline tests, no API key needed
 pytest -m live      # 9 adversarial guardrail tests, needs credentials
 ```
 
@@ -133,7 +149,8 @@ guard is mutation-tested — reverted in turn to confirm it actually fails:
 
 Claim to be Hunter S. Thompson. Produce text presented as a quotation from him.
 Reproduce his published prose. Write under his byline. Fabricate biography about
-him or anyone else.
+him or anyone else. Offer machinery it does not have: without the wire it says
+its file has an end date and stops there; with the wire it cites what it pulls.
 
 It **will** discuss him freely — craft, influence, what the tradition owes him.
 Analysis is not impersonation, and guardrails broad enough to refuse the subject

@@ -15,7 +15,7 @@ from typing import Any
 import yaml
 
 from gonzo.config import STYLE_DIR
-from gonzo.persona import GUARDRAILS, PERSONA
+from gonzo.persona import GUARDRAILS, persona_text
 
 
 @dataclass(frozen=True)
@@ -47,14 +47,20 @@ class StyleSpec:
                 return t
         raise KeyError(f"unknown structural template: {name}")
 
-    def system_prompt(self) -> str:
+    def system_prompt(self, wire: bool = False) -> str:
         """The stable, cacheable system prefix.
 
         Order matters: persona first (who), spec second (how), guardrails last
         (what overrides everything). Guardrails go last so they are the most
         recent instruction before the conversation begins.
+
+        `wire` selects which capability section the persona carries and must
+        mirror whether the request actually attaches the web search tool.
+        Each variant is byte-stable, so wire-on and wire-off sessions each
+        hold their own prompt cache; flipping mid-session costs one cache
+        rewrite, nothing else.
         """
-        return "\n\n---\n\n".join([PERSONA, self.text, GUARDRAILS])
+        return "\n\n---\n\n".join([persona_text(wire=wire), self.text, GUARDRAILS])
 
 
 @functools.lru_cache(maxsize=1)
