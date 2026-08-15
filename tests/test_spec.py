@@ -64,6 +64,20 @@ class TestSystemPrompt:
         assert not re.search(r"\b20\d\d-\d\d-\d\d\b", prompt), "date leaked into cached prefix"
         assert not re.search(r"[0-9a-f]{32}", prompt), "uuid/hash leaked into cached prefix"
 
+    def test_never_offers_absent_capabilities(self):
+        """The narrator must not offer tools the engine does not have.
+
+        Live-output regression: asked about events past its cutoff, the model
+        volunteered "turn on web search here and let me pull it" — a feature
+        this product does not have. The persona now states the capability
+        boundary explicitly; this pins that the statement reaches the model.
+        """
+        # Normalize hard line wraps so assertions survive prose reflow.
+        prompt = " ".join(load_spec().system_prompt().split())
+        assert "no search desk" in prompt
+        assert "Never offer one" in prompt
+        assert "machinery you do not have" in prompt
+
     def test_long_enough_to_cache(self):
         """Opus 5 will not cache a prefix under 512 tokens; below that the
         breakpoint is a no-op and we would silently pay full price forever."""
