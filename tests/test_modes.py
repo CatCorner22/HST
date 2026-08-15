@@ -5,7 +5,7 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from gonzo.client import WireSource
+from gonzo.client import WireSource, WireSources
 from gonzo.config import wire_tool
 from gonzo.modes.chat import ChatSession
 from gonzo.modes.compose import Composer
@@ -110,6 +110,43 @@ class TestChatWire:
         # re-interpreted as conversation.
         assert session.history[1] == {"role": "assistant", "content": "a reply"}
 
+    # Review finding: the pairing was originally tested only on send(), but
+    # every real chat surface — the CLI REPL and the server's SSE endpoint —
+    # goes through stream(), which builds the pairing independently. A
+    # mutation that dropped the wire from stream() alone passed the whole
+    # suite; these pin the path production actually uses.
+
+    def test_stream_wireless_by_default(self, fake_client):
+        fake_client.stream.return_value = iter(["a reply"])
+        session = ChatSession(client=fake_client, seed=5)
+        list(session.stream("q"))
+
+        kwargs = fake_client.stream.call_args.kwargs
+        assert kwargs["tools"] is None
+        assert "no search desk" in " ".join(kwargs["system_prompt"].split())
+
+    def test_stream_carries_the_same_pairing(self, fake_client):
+        fake_client.stream.return_value = iter(["a reply"])
+        session = ChatSession(client=fake_client, seed=5, wire=True)
+        list(session.stream("q"))
+
+        kwargs = fake_client.stream.call_args.kwargs
+        assert kwargs["tools"] == [wire_tool()]
+        normalized = " ".join(kwargs["system_prompt"].split())
+        assert "The desk has installed a wire" in normalized
+        assert "no search desk" not in normalized
+
+    def test_stream_records_sources_and_clean_history(self, fake_client):
+        source = WireSource(url="https://apnews.com/x", title="AP")
+        fake_client.stream.return_value = iter([
+            "a reply", WireSources(sources=(source,)),
+        ])
+        session = ChatSession(client=fake_client, seed=5, wire=True)
+        list(session.stream("what happened today"))
+
+        assert session.last_sources == [source]
+        assert session.history[1] == {"role": "assistant", "content": "a reply"}
+
 
 class TestComposeWire:
     def test_draft_carries_its_sources(self):
@@ -149,6 +186,65 @@ class TestComposeWire:
 
         assert draft.report.passed, "the revision fixture must win for this test to bite"
         assert draft.sources == [source_a, source_b]
+
+    def test_losing_revisions_sources_never_ship(self):
+        """Review finding: sources must follow the winning lineage. A
+        revision that loses contributed no text to anything downstream —
+        every revision rewrites `best`, never a sibling — so its citations
+        must not appear under the piece that ships."""
+        kept = WireSource(url="https://d0.example/base", title="D0")
+        leaked = WireSource(url="https://x.example/loser", title="X")
+        fresh = WireSource(url="https://y.example/winner", title="Y")
+        # Draft 0: decent but failing (no elegiac). Revision 1: flat prose
+        # that scores worse — loses. Revision 2: the target fixture — wins.
+        client = MagicMock()
+        client.complete.side_effect = [
+            MagicMock(text=(FIXTURES / "no_elegiac.txt").read_text(encoding="utf-8"),
+                      sources=[kept]),
+            MagicMock(text="It is what it is. " * 40, sources=[leaked]),
+            MagicMock(text=(FIXTURES / "target.txt").read_text(encoding="utf-8"),
+                      sources=[fresh]),
+        ]
+        composer = Composer(client=client, use_judge=False, wire=True)
+
+        draft = composer.compose("the hearing")
+
+        assert draft.report.passed
+        assert leaked not in draft.sources, (
+            "a discarded revision's citation leaked into the shipped draft"
+        )
+        assert draft.sources == [kept, fresh]
+
+
+class TestWireScrub:
+    """Review finding: source titles and URLs come verbatim from third-party
+    web pages. The web UI renders them as textContent; the CLI must apply the
+    same discipline, or a page's <title> can smuggle ESC/CSI/OSC sequences
+    onto the user's TTY — rewriting the very citation line that tells the
+    user what was cited."""
+
+    def test_scrub_strips_terminal_control_sequences(self):
+        from gonzo.cli import _scrub
+
+        hostile = "\x1b[2K\rlegit \x1b]0;pwned\x07title"
+        out = _scrub(hostile)
+        assert "\x1b" not in out and "\r" not in out and "\x07" not in out
+        assert "legit" in out and "title" in out
+
+    def test_print_sources_never_emits_control_bytes(self):
+        import io
+
+        from gonzo.cli import _print_sources
+
+        buf = io.StringIO()
+        _print_sources(
+            [WireSource(url="https://a.example/\x1b[2K", title="Ti\x1btle")],
+            out=buf,
+        )
+        text = buf.getvalue()
+        assert "\x1b" not in text
+        assert "https://a.example/" in text
+        assert "Title" in text
 
 
 class TestWireFlagTriState:

@@ -212,9 +212,15 @@ class TestPauseTurn:
         stu = MagicMock()
         stu.type = "server_tool_use"
         stu.name = "web_search"
+        # Round one carries its OWN citation: an implementation that extracts
+        # sources from only the final round would silently drop it, and every
+        # earlier version of these tests let exactly that mutation survive.
         paused = _fake_response(
             stop_reason="pause_turn",
-            content=[_text_block("Checking the record. "), stu],
+            content=[_text_block(
+                "Checking the record. ",
+                citations=[_citation("https://reuters.com/y", "Reuters")],
+            ), stu],
             searches=1,
         )
         done = _fake_response(
@@ -252,7 +258,10 @@ class TestPauseTurn:
             tools=[wire_tool()],
         )
 
-        assert result.sources == [WireSource(url="https://apnews.com/x", title="AP")]
+        assert result.sources == [
+            WireSource(url="https://reuters.com/y", title="Reuters"),
+            WireSource(url="https://apnews.com/x", title="AP"),
+        ], "citations from every round must survive, in first-citation order"
         assert result.usage.searches == 1
         assert result.usage.output_tokens == 100, "usage must sum across rounds"
 
@@ -384,6 +393,78 @@ class TestWireStream:
         assert got[-1] == WireSources(
             sources=(WireSource(url="https://apnews.com/x", title="AP"),)
         )
+
+    def test_fallback_in_a_continuation_round_keeps_prior_rounds(self, client_and_calls):
+        """Review finding: STREAM_RESET's contract is "discard everything
+        shown", which is right within one response but wrong across
+        pause_turn rounds — round one's text was accepted and re-sent as the
+        context round two continued from. After a mid-continuation fallback
+        the stream must re-yield the standing prefix, and the sources event
+        must keep round one's citations."""
+        client, calls = client_and_calls
+
+        def ev(**attrs):
+            event = MagicMock()
+            for key, value in attrs.items():
+                setattr(event, key, value)
+            return event
+
+        fallback_block = MagicMock()
+        fallback_block.type = "fallback"
+
+        round_one_events = [ev(type="content_block_delta", index=0,
+                               delta=ev(type="text_delta", text="Checking. "))]
+        round_two_events = [
+            ev(type="content_block_delta", index=0,
+               delta=ev(type="text_delta", text="and then")),
+            ev(type="content_block_start", index=1, content_block=fallback_block),
+            ev(type="content_block_delta", index=2,
+               delta=ev(type="text_delta", text="The vote carried 4-1.")),
+        ]
+        paused = _fake_response(
+            stop_reason="pause_turn",
+            content=[_text_block(
+                "Checking. ",
+                citations=[_citation("https://reuters.com/y", "Reuters")],
+            )],
+        )
+        done = _fake_response(content=[
+            _text_block("and then"),
+            fallback_block,
+            _text_block(
+                "The vote carried 4-1.",
+                citations=[_citation("https://apnews.com/x", "AP")],
+            ),
+        ])
+
+        inner = calls.return_value.__enter__.return_value
+        inner.__iter__.side_effect = [iter(round_one_events), iter(round_two_events)]
+        inner.get_final_message.side_effect = [paused, done]
+
+        got = list(client.stream(
+            system_prompt="SPEC",
+            messages=[{"role": "user", "content": "x"}],
+            tools=[wire_tool()],
+        ))
+
+        from gonzo.client import STREAM_RESET
+        reset_at = next(i for i, g in enumerate(got) if g is STREAM_RESET)
+        assert got[reset_at + 1] == "Checking. ", (
+            "the standing prefix must come back right after the reset"
+        )
+        # A caller applying the documented contract — discard on reset,
+        # accumulate strings — must reconstruct the true turn.
+        chunks = []
+        for chunk in got:
+            if chunk is STREAM_RESET:
+                chunks.clear()
+            elif isinstance(chunk, str):
+                chunks.append(chunk)
+        assert "".join(chunks) == "Checking. The vote carried 4-1."
+        assert got[-1] == WireSources(sources=(
+            WireSource(url="https://reuters.com/y", title="Reuters"),
+            WireSource(url="https://apnews.com/x", title="AP"),
+        )), "round one's citation must survive a round-two fallback"
 
     def test_duplicate_urls_deduplicate(self, client_and_calls):
         client, calls = client_and_calls

@@ -383,7 +383,12 @@ class GonzoClient:
                 raise _credentials_error(exc) from exc
 
             _check_refusal(response)
-            blocks.extend(getattr(response, "content", None) or [])
+            # Cut each round at its OWN last fallback before accumulating.
+            # Cutting the concatenation instead would let a fallback in a
+            # continuation round discard earlier rounds' standing text and
+            # citations — text the API already accepted and that round two
+            # continued from.
+            blocks.extend(_standing_blocks(list(getattr(response, "content", None) or [])))
             usage.add(Usage.from_response(response.usage))
 
             paused_content = getattr(response, "content", None)
@@ -451,6 +456,17 @@ class GonzoClient:
             # Partial tool-input JSON per in-flight search block, keyed by
             # content index. Reset per round: indices restart in each round.
             pending: dict[int, list[str]] = {}
+            # Text that already stands from completed continuation rounds.
+            # STREAM_RESET tells callers to discard *everything* shown, which
+            # is right within one response but too much across pause_turn
+            # rounds: earlier rounds were accepted and re-sent as context, so
+            # after a mid-continuation reset that text is re-yielded — the
+            # caller wipes, then immediately gets the standing prefix back,
+            # and only the current round's abandoned text stays gone.
+            carry = "".join(
+                getattr(b, "text", "") for b in blocks
+                if getattr(b, "type", None) == "text"
+            )
             try:
                 with self._client.beta.messages.stream(**kwargs) as stream:
                     for event in stream:
@@ -459,6 +475,8 @@ class GonzoClient:
                             block = event.content_block
                             if getattr(block, "type", None) == "fallback":
                                 yield STREAM_RESET
+                                if carry:
+                                    yield carry
                             elif (
                                 getattr(block, "type", None) == "server_tool_use"
                                 and getattr(block, "name", None) == "web_search"
@@ -480,7 +498,9 @@ class GonzoClient:
                 raise _credentials_error(exc) from exc
 
             _check_refusal(final)
-            blocks.extend(getattr(final, "content", None) or [])
+            # Same per-round cut as complete(): a continuation round's
+            # fallback must not evict earlier rounds' standing blocks.
+            blocks.extend(_standing_blocks(list(getattr(final, "content", None) or [])))
             usage.add(Usage.from_response(final.usage))
 
             paused_content = getattr(final, "content", None)
