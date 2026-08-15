@@ -46,6 +46,22 @@ class VarianceDirective:
 
     def render(self) -> str:
         """Render as an instruction block for the message stream."""
+        if self.template:
+            contrast_line = (
+                f"REQUIRED CONTRAST REGISTER — {self.contrast_band} "
+                "(you must genuinely occupy this band somewhere in the piece, not "
+                "gesture at it)"
+            )
+        else:
+            # Conversational length. Mandating full occupation of a second band
+            # in 100 words forces a crammed register tour — the tell of an
+            # imitation. A turn is enough.
+            contrast_line = (
+                f"CONTRAST REGISTER — {self.contrast_band}: turn toward this band "
+                "once, even for a single sentence, if the reply runs long enough "
+                "to earn it. Do not force a tour of every register."
+            )
+
         lines = [
             "<style_directive>",
             "Stylistic assignment for this piece. Follow it. Never mention it, "
@@ -53,9 +69,7 @@ class VarianceDirective:
             "",
             f"OPENING MOVE — {self.opening_move}: {self.opening_brief}",
             f"DOMINANT REGISTER — {self.dominant_band}",
-            f"REQUIRED CONTRAST REGISTER — {self.contrast_band} "
-            "(you must genuinely occupy this band somewhere in the piece, not "
-            "gesture at it)",
+            contrast_line,
             f"IMAGERY DOMAIN — {self.imagery_domain}: {self.imagery_brief} "
             "(draw your figurative language primarily from here)",
         ]
@@ -63,6 +77,10 @@ class VarianceDirective:
         if self.template:
             lines += ["", f"STRUCTURE — {self.template}. Move through these beats in order:"]
             lines += [f"  {i}. {m}" for i, m in enumerate(self.template_movements, 1)]
+            lines += [
+                "Execute the opening move as your entry into beat 1 — they "
+                "describe the same paragraphs, not two openings."
+            ]
 
         lines += ["</style_directive>"]
         return "\n".join(lines)
@@ -125,6 +143,18 @@ class VarianceDirector:
             template = rng.choice(self.spec.templates)
             template_name = template["name"]
             movements = tuple(template["movements"])
+            # The opening move and the template's first movement both govern the
+            # opening paragraphs. Drawing them independently produced a directive
+            # at war with itself in ~45% of long-form draws (90/200 seeded — e.g.
+            # seed 11: "open on weather" vs. eulogy's "state what ended, flat") —
+            # and a model given two contradictory openings writes a muddled
+            # compromise. Redraw from the template's compatible pool so the
+            # assignment is coherent by construction.
+            allowed = template.get("compatible_openings")
+            if allowed:
+                pool = [m for m in self.spec.opening_moves if m["name"] in allowed]
+                if pool:
+                    move = rng.choice(pool)
 
         return VarianceDirective(
             seed=seed,

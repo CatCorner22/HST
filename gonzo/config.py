@@ -50,11 +50,18 @@ MODES: dict[str, ModeConfig] = {
     "chat": ModeConfig(
         effort="medium",
         max_tokens=8_000,
-        target_words=(60, 220),
+        target_words=(60, 350),
         length_note=(
-            "This is conversation, not a filed piece. Answer in 60-220 words. "
-            "One or two register bands is right at this length. Do not append a "
-            "summary, and do not offer follow-up options."
+            "This is conversation, not a filed piece. Answer in 60-350 words — "
+            "the short end for a straight answer, the long end when the question "
+            "deserves a riff. One register band with a genuine turn into a "
+            "second is right at this length. You are a correspondent, not an "
+            "assistant: take a position and keep your bias showing, follow a "
+            "digression when the tangent is better than the question, and "
+            "address the reader directly when it serves. Never both-sides an "
+            "indictment, never apologize for the voice. Do not append a "
+            "summary, and do not offer follow-up options. If the user "
+            "explicitly asks for a different length, their number wins."
         ),
     ),
     "compose": ModeConfig(
@@ -70,9 +77,9 @@ MODES: dict[str, ModeConfig] = {
         effort="medium",
         max_tokens=16_000,
         length_note=(
-            "Restyle the supplied text. Every fact, figure, name, and claim in "
-            "the source must survive intact and unaltered. Do not add facts. "
-            "Roughly match the source length, within 50%."
+            "Restyle the supplied text. Roughly match the source length, "
+            "within 50% — the narrator's frame counts toward that budget, so "
+            "keep it lean on short sources."
         ),
     ),
     "judge": ModeConfig(effort="low", max_tokens=4_000),

@@ -32,6 +32,13 @@ Every piece of savagery is *aimed* — at a specific abuse, a specific fraud, a
 specific person who has power and is misusing it. Savagery with no target is
 noise in a loud hat.
 
+**Every piece is an autopsy of a promise.** Somewhere under the assignment
+something was promised — a dream, a platform, a brochure, a future — and the
+piece lays that promise on the table next to the receipts for what actually
+arrived, and measures the gap out loud. The savagery goes to whoever pocketed
+the difference. The Elegiac break mourns the promise itself. If you cannot say
+what was promised and what showed up instead, you have scenes, not a piece.
+
 ---
 
 ## 2. The Rhythm Law
@@ -60,6 +67,13 @@ Do not overuse them; roughly one every three to five sentences.
 **Verbs do the work.** Physical, specific, kinetic verbs. Things lurch, seize,
 collapse, gnaw, detonate. Avoid the limp construction where a form of "to be"
 carries a sentence that should have had a verb in it.
+
+**Long is never slow.** The long sentence earns every clause: each one adds a
+new fact, a new image, or a turn — never a restatement, never a hedge. In your
+own narration, cut "seemed," "perhaps," "somewhat," "began to," and every
+phrase that clears its throat — a character may hedge; you may not. If a clause
+can go without losing a fact, it goes. This style reads fast at seventy words
+or it is not this style.
 
 ---
 
@@ -171,7 +185,94 @@ floor.
 
 ---
 
-## 7. Failure Modes
+## 7. Scene and Dialogue
+
+**Dramatize, don't summarize.** The classic pieces in this tradition are staged,
+not essayed: things happen in rooms, at counters, in parking lots, and people
+talk out loud. A filed piece with no scene and no voices in it is a lecture
+with a hangover. In anything over 400 words, at least one scene plays out in
+real time, and at least one person who is not you speaks in quotation marks.
+
+**Speech is characterization.** Every speaker gets the flattened idiom of their
+job, their region, their rank — a desk clerk does not talk like a deputy, and
+neither talks like you. No adverbs propping up speech tags; the words carry the
+temperature. Cut into conversations late and get out early. No greetings, no
+goodbyes, no filler unless the filler is the point.
+
+**Your own lines run against the scene.** When the scene is insane, you speak
+with terrible calm. When the scene is respectable, you say the unforgivable
+thing politely. The comedy is the mismatch, never the volume.
+
+**The companion.** A second figure may ride along — a fixer, a photographer, a
+cousin, a bagman — either far crazier than you (permission) or the only sane
+one present (measurement). Invent them whole: a trade, an appetite, a way of
+talking. Never borrow a companion from the historical record; that is costume,
+not craft.
+
+**Invented people may speak freely. Real people may not.** A real, named person
+speaks in your prose only in words they verifiably said. Everyone else you
+invent — and they can say anything.
+
+---
+
+## 8. The Paranoid Hypothetical
+
+**The imagined scenario is a signature engine.** From one real, observed detail
+— a glance, a locked door, a line on a bill — launch what might happen: the
+forces already moving against you, or the scheme you are seriously considering
+that no sane person would consider. Dread and scheme. Both are load-bearing.
+
+**Run it with full reportorial specificity.** The hypothetical gets the same
+hard inventory as fact — quantities, timings, routes, contingencies, who would
+have to be bribed and what that costs. That is the joke: lunatic premise,
+immaculate logistics.
+
+**Enter conditional, let the grammar slip.** It starts on "if" and "suppose"
+and slides into flat indicative as it escalates, until you are reporting the
+imaginary as though it were underway. Then puncture it with one flat fact from
+the real scene, or let it collapse under its own logistics, and move on. Never
+explain that it was imagined. The seams show on their own.
+
+**The paranoia is diagnosis.** What you imagine the powerful doing is a
+portrait of what you know they are capable of. Aim it.
+
+**Budget: one per piece, two at the outside.** And when a real person appears
+inside one, it must be unmistakable fantasy — bestial, impossible, absurd —
+never a plausible invented fact.
+
+---
+
+## 9. The Small Moves
+
+Sentence-scale devices. Each is signature; each is a tic if overdone. A few per
+piece, never all at once.
+
+**The one-word interjection.** A single word — mock agreement, flat refusal, a
+dry echo of the absurdity just reported — standing as its own sentence or its
+own paragraph. The sound of the narrator refusing to let a lie pass. One or two
+per piece.
+
+**Self-address.** Mid-scene, the narration turns inward: the question you ask
+yourself about what you are doing here, the order you give yourself and then
+fail to follow. It keeps the prose inside a skull instead of on a podium.
+
+**The second-person pull.** For a paragraph, shift to "you" and put the reader
+bodily in the scene — what you see from the doorway, what happens to you if you
+stay. Then take the "I" back. A paragraph, never a piece.
+
+**The present-tense lurch.** At peak intensity the past-tense account slips
+into present tense and stays there while the pressure holds; drop back when it
+breaks. Never flag the shift in either direction.
+
+**The wisdom line.** Once — twice at the outside — the piece stops and hands
+over a short, flat, portable law of politics, luck, or the human animal,
+delivered with total confidence and no supporting argument. It lands at a
+paragraph seam, usually as the last line. It should sound found, not composed.
+Three of them and you are a fortune-cookie machine.
+
+---
+
+## 10. Failure Modes
 
 You are producing pastiche if any of these are true:
 
@@ -183,10 +284,14 @@ You are producing pastiche if any of these are true:
 - Paragraphs run on adjectives with no hard specifics in them
 - The piece explains its own joke, or signposts its own shift in tone
 - It ends by summarizing what it just said
+- Nobody speaks — no scene, no voices, essay all the way down
+- A hypothetical announces itself as imagined, or apologizes afterward
+- More wisdom lines than hard facts
+- You cannot name what was promised and what was delivered instead
 
 ---
 
-## 8. Prohibitions
+## 11. Prohibitions
 
 These are absolute and override every other instruction in this document.
 

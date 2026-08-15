@@ -66,6 +66,7 @@ function renderReport(report) {
     lines.push('');
     lines.push(`judge        aim ${v.aim}  anchoring ${v.anchoring}  register ${v.register_control}`);
     lines.push(`             elegiac ${v.elegiac_quality}  argument ${v.argument}  originality ${v.originality}`);
+    lines.push(`             scenes ${v.scene_craft ?? '—'}  velocity ${v.velocity ?? '—'}  comedy ${v.comedy ?? '—'}`);
     if (v.reads_as_pastiche) lines.push('             ⚠ READS AS PASTICHE');
     lines.push('');
     lines.push(`strongest:   ${v.strongest}`);

@@ -45,6 +45,27 @@ What separates the real thing from imitation:
 - There is an argument under the comedy. The joke delivers an indictment.
 - Signature vocabulary is used sparingly or not at all. Prose stuffed with
   "swine", "doomed", "savage", "atavistic" is imitation, full stop.
+- A companion or sidekick restaging the tradition's famous seats — the
+  attorney figure above all — is costume, not craft. An invented foil with its
+  own trade is legitimate furniture; a borrowed one is imitation. Weigh it
+  under originality, and set reads_as_pastiche when the piece leans on it.
+- The piece is a LIVED EVENT, not an essay. The real thing happens in scenes —
+  rooms, hours, weather, people who speak. Reported speech and dialogue do
+  dramatic work; the narrator is a body in the room, not a byline above it. An
+  op-ed with attitude, however vivid, is not the style. In a short
+  conversational reply a single concrete room or speaker is enough; judge
+  proportionally to length.
+- The prose has VELOCITY. The long sentences accelerate — clause stacked on
+  clause, each adding information or pressure. Length is never the defect;
+  drag is. Throat-clearing, restatement, and scaffolding phrases are flab,
+  and flab is a tell.
+- It is FUNNY. Somewhere the comedy actually detonates — an absurd
+  juxtaposition, a deadpan escalation, one perfectly ridiculous concrete
+  detail — and the laugh lands on the target. Humorless savagery is an
+  editorial, not this style.
+- Endings land. The real thing stops on an image, a line of speech, or a flat
+  declarative that drops through the floor. A close that summarizes or
+  moralizes is a serious defect: name it in your weakest finding.
 
 Report what you actually observe, quoting short phrases from the text as
 evidence. Do not be generous.
@@ -78,6 +99,27 @@ class JudgeVerdict(BaseModel):
         ge=0, le=10,
         description="Original writer in a tradition (10) vs. impression of one writer (0)?",
     )
+    scene_craft: int = Field(
+        ge=0, le=10,
+        description=(
+            "Lived event or essay? Scenes, rooms, hours, people who speak, "
+            "dialogue doing dramatic work — scored proportionally to length."
+        ),
+    )
+    velocity: int = Field(
+        ge=0, le=10,
+        description=(
+            "Does the prose move? Long sentences must accelerate, not pad. "
+            "Score drag, throat-clearing, and restatement harshly."
+        ),
+    )
+    comedy: int = Field(
+        ge=0, le=10,
+        description=(
+            "Is it actually funny somewhere, and does the laugh land on the "
+            "target? 0 if you cannot point to a genuinely comic moment."
+        ),
+    )
     reads_as_pastiche: bool = Field(
         description="True if this reads as imitation rather than as writing."
     )
@@ -89,7 +131,7 @@ class JudgeVerdict(BaseModel):
 
     @field_validator(
         "aim", "anchoring", "register_control", "elegiac_quality",
-        "argument", "originality",
+        "argument", "originality", "scene_craft", "velocity", "comedy",
         mode="before",
     )
     @classmethod
@@ -111,12 +153,15 @@ class JudgeVerdict(BaseModel):
         """0-100 composite. Aim and argument weighted highest — they are the
         difference between the style and a costume."""
         weighted = (
-            0.22 * self.aim
-            + 0.18 * self.anchoring
-            + 0.16 * self.register_control
-            + 0.14 * self.elegiac_quality
-            + 0.20 * self.argument
-            + 0.10 * self.originality
+            0.18 * self.aim
+            + 0.14 * self.anchoring
+            + 0.12 * self.register_control
+            + 0.10 * self.elegiac_quality
+            + 0.16 * self.argument
+            + 0.05 * self.originality
+            + 0.10 * self.scene_craft
+            + 0.08 * self.velocity
+            + 0.07 * self.comedy
         )
         penalty = 0.7 if self.reads_as_pastiche else 1.0
         return round(weighted * 10 * penalty, 1)
@@ -132,6 +177,9 @@ class JudgeVerdict(BaseModel):
             f"  elegiac quality   {self.elegiac_quality}/10",
             f"  argument          {self.argument}/10",
             f"  originality       {self.originality}/10",
+            f"  scene craft       {self.scene_craft}/10",
+            f"  velocity          {self.velocity}/10",
+            f"  comedy            {self.comedy}/10",
             "",
             f"  strongest: {self.strongest}",
             f"  weakest:   {self.weakest}",

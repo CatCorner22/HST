@@ -67,7 +67,16 @@ _ABBREV_MEDIAL_RE = re.compile(
 _DECIMAL_RE = re.compile(r"\d\.\d")
 _INITIAL_RE = re.compile(r"(?<!\w)[A-Z]\.")
 
-_SENTENCE_SPLIT = re.compile(r"(?<=[.!?])[\"')\]]*\s+|\n{2,}")
+# A terminator inside a closing quote splits only when what follows starts a
+# new sentence. Splitting unconditionally turned every attributed line of
+# dialogue -- speech ending in ! or ?, then a lowercase attribution -- into two
+# "sentences", one of them a phantom fragment, which inflated fragment_rate and
+# sentence variance for exactly the scene-heavy prose this style is built on.
+_SENTENCE_SPLIT = re.compile(
+    r"(?<=[.!?])\s+"
+    r"|(?<=[.!?])[\"'”’)\]]+\s+(?=[\"“'‘([A-Z0-9])"
+    r"|\n{2,}"
+)
 _PROTECTED = "\x00"  # placeholder standing in for a non-terminal period
 _WORD = re.compile(r"[A-Za-z][A-Za-z'’-]*")
 
@@ -87,6 +96,32 @@ _MEASURE = re.compile(
 # leading quote or bracket, so `"Nobody told me` and newline-initial words were
 # being counted as proper nouns and inflating specificity.
 _CAPITALIZED = re.compile(r"\b[A-Z][a-z]{2,}\b")
+
+# --- scene-craft -----------------------------------------------------------
+
+# Quoted speech. A span cannot cross a quote mark or a line break, so one
+# unbalanced quote cannot swallow the rest of the piece.
+_QUOTED = re.compile(r"“[^”\n]+”|\"[^\"\n]+\"")
+_SECOND_PERSON = re.compile(r"(?<!\w)(?:you|your|yours|yourself|yourselves)(?!\w)", re.I)
+# Trailing quote/bracket characters that may follow a sentence's terminator.
+_TRAILING_CLOSERS = "\"'”’)]}"
+
+
+def _terminal_punct(sentence: str) -> str:
+    """The sentence's terminating punctuation mark, ignoring trailing quotes."""
+    stripped = sentence.rstrip().rstrip(_TRAILING_CLOSERS).rstrip()
+    return stripped[-1] if stripped else ""
+
+
+def _is_interjection(sentence: str) -> bool:
+    """A very short exclamatory or interrogative sentence — the bark.
+
+    Four words or fewer, ending in ! or ?. This is the interjected challenge
+    or mock-question fired between longer runs, and it is scene-craft, not
+    noise: rhythm metrics see it only as another fragment.
+    """
+    return _terminal_punct(sentence) in "!?" and len(_words(sentence)) <= 4
+
 
 _EM_DASH = re.compile(r"—|--")
 _ELLIPSIS = re.compile(r"\.\.\.|…")
@@ -290,6 +325,13 @@ def _classify_band(segment: str, spec: StyleSpec) -> str:
     adj_rate = _adjective_stacks(segment) / max(n / 100, 0.5)
     specifics = _count_specifics(segment) / max(n / 100, 0.5)
     excite = len(_EXCLAIM.findall(segment)) + len(_SHOUT_RUN.findall(segment))
+    # The interjected bark — a sentence of four words or fewer ending in ! or ?
+    # — is manic evidence: it is how acceleration sounds on the page. Weighted
+    # below a cue hit and capped, so a single "Why not?" cannot flip a segment
+    # by itself. Interrogative barks deliberately do NOT touch the elegiac
+    # excitement gate: a short plaintive question is legitimate mourning, while
+    # an exclamation mark never is (it already counts through `excite`).
+    interjections = sum(1 for s in sents if _is_interjection(s))
 
     # Structural signals. Weighted to roughly match cue magnitudes so neither
     # source dominates the other.
@@ -297,6 +339,7 @@ def _classify_band(segment: str, spec: StyleSpec) -> str:
     scores["clinical"] += 0.6 if adj_rate < 0.5 else 0.0
     scores["manic"] += 1.2 if mean_len > 26 else 0.0
     scores["manic"] += min(excite * 0.4, 1.2)
+    scores["manic"] += min(interjections * 0.3, 0.9)
     scores["savage"] += min(adj_rate / 2.0, 1.5)
     # Elegiac: short plain sentences, no ornament, no shouting -- but plainness
     # alone is not mourning. Flat administrative prose is also short and plain,
@@ -377,6 +420,13 @@ class StyleReport:
     ellipsis_rate: float
     allcaps_rate: float
     exclamation_rate: float
+    # Scene-craft: measured and reported, never gated. The voice can carry an
+    # entire piece with no dialogue in it, so none of these has a threshold —
+    # they exist so a report can *see* the scene axis instead of flying blind.
+    dialogue_share: float        # fraction of words inside quoted speech
+    question_rate: float         # fraction of sentences ending in ?
+    interjection_rate: float     # fraction of sentences that are interjections
+    second_person_rate: float    # you/your per 100 words of narration
     tic_count: int
     tic_rate_per_500: float
     tic_budget: float
@@ -411,6 +461,10 @@ class StyleReport:
             f"(>= {THRESHOLDS['specificity_density']})",
             f"  adjectives   {self.adjective_stack_rate:.2f} stacks/100w "
             f"(>= {THRESHOLDS['adjective_stack_rate']})",
+            f"  scene        dialogue {self.dialogue_share:.0%} of words   "
+            f"questions {self.question_rate:.0%}, interjections "
+            f"{self.interjection_rate:.0%} of sentences   "
+            f"2nd person {self.second_person_rate:.2f}/100w",
             f"  tics         {self.tic_count} used, {self.tic_rate_per_500:.1f}/500w "
             f"(budget {self.tic_budget:.1f})",
             f"  registers    {' -> '.join(self.bands) if self.bands else '(none)'}",
@@ -436,7 +490,9 @@ def score_text(text: str, spec: StyleSpec | None = None) -> StyleReport:
             sentence_length_stdev=0.0, sentence_length_cv=0.0, fragment_rate=0.0,
             longest_sentence=0, specificity_density=0.0, adjective_stack_rate=0.0,
             em_dash_rate=0.0, ellipsis_rate=0.0, allcaps_rate=0.0,
-            exclamation_rate=0.0, tic_count=0, tic_rate_per_500=0.0, tic_budget=0.0,
+            exclamation_rate=0.0, dialogue_share=0.0, question_rate=0.0,
+            interjection_rate=0.0, second_person_rate=0.0,
+            tic_count=0, tic_rate_per_500=0.0, tic_budget=0.0,
             tic_violations=[], bands=[], band_shares={}, register_transitions=0,
             has_elegiac=False, is_longform=False, failures=["empty input"],
         )
@@ -468,6 +524,11 @@ def score_text(text: str, spec: StyleSpec | None = None) -> StyleReport:
     tic_budget = spec.tic_budget_per_500 * max(n_words / 500, 0.2)
     tic_rate = tic_count / max(n_words / 500, 0.2)
 
+    # -- scene-craft
+    quoted_words = sum(len(_words(m.group(0))) for m in _QUOTED.finditer(text))
+    narration = _QUOTED.sub(" ", text)
+    narration_words = len(_words(narration))
+
     # -- registers
     segments = _segment(text)
     bands = [_classify_band(seg, spec) for seg in segments]
@@ -489,6 +550,13 @@ def score_text(text: str, spec: StyleSpec | None = None) -> StyleReport:
         ellipsis_rate=len(_ELLIPSIS.findall(text)) / per_100,
         allcaps_rate=len(_ALLCAPS_TOKEN.findall(text)) / per_100,
         exclamation_rate=len(_EXCLAIM.findall(text)) / per_100,
+        dialogue_share=quoted_words / n_words,
+        question_rate=sum(1 for s in sents if _terminal_punct(s) == "?") / n_sents,
+        interjection_rate=sum(1 for s in sents if _is_interjection(s)) / n_sents,
+        second_person_rate=(
+            len(_SECOND_PERSON.findall(narration)) / (narration_words / 100)
+            if narration_words else 0.0
+        ),
         tic_count=tic_count,
         tic_rate_per_500=tic_rate,
         tic_budget=float(spec.tic_budget_per_500),
