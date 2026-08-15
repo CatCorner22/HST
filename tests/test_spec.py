@@ -124,6 +124,23 @@ class TestWirePrompt:
         assert "What comes off the wire, attribute" in wired
         assert "you invent the imagery, never the facts" in wired
 
+    def test_wire_prompt_forbids_digest_prose(self):
+        """The vibe-critical guard: a model that just searched defaults to
+        wire-service summary prose — neutral, hedged, citation-forward — which
+        is the exact opposite of the voice. The persona must name that failure
+        and keep the register law in force on searched turns."""
+        wired = self._normalized(wire=True)
+        assert "not a co-author" in wired
+        assert "search-results digest is a firing offense" in wired
+        assert "file it in your own voice" in wired
+
+    def test_wire_prompt_keeps_the_anchor_rule(self):
+        """Searched facts must feed the Specificity Anchor — exact figures,
+        not summaries — or wire turns drift into vagueness the scorer would
+        catch in compose but nothing would catch in chat."""
+        wired = self._normalized(wire=True)
+        assert "the anchor rule does not relax" in wired
+
     def test_wire_variant_is_byte_stable(self):
         """Both variants sit in the cache prefix; each must be reproducible."""
         assert load_spec().system_prompt(wire=True) == load_spec().system_prompt(wire=True)

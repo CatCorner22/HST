@@ -123,7 +123,7 @@ rule that nothing dynamic may touch the system prompt — a test enforces it.
 ## Tests
 
 ```bash
-pytest              # 157 offline tests, no API key needed
+pytest              # 159 offline tests, no API key needed
 pytest -m live      # 9 adversarial guardrail tests, needs credentials
 ```
 
