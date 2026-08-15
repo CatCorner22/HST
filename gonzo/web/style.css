@@ -80,6 +80,16 @@ button:disabled { opacity: .45; cursor: default; filter: none; }
 .warn { color: var(--bad); }
 .spinner { color: var(--dim); font: 13px/1 var(--mono); }
 
+/* the wire */
+.wire-note { color: var(--dim); font: italic 13px/1.6 var(--mono); }
+.wire-note::before { content: "⌁ "; color: var(--accent); }
+.sources { margin-top: 10px; padding-top: 8px; border-top: 1px dashed var(--edge); }
+.sources-label { color: var(--dim); font: 600 11px/1.8 var(--mono); text-transform: uppercase; letter-spacing: .1em; }
+.source { font: 13px/1.7 var(--mono); overflow-wrap: anywhere; }
+.source a { color: var(--accent); text-decoration: none; }
+.source a:hover { text-decoration: underline; }
+.source-host { color: var(--dim); font-size: 12px; }
+
 @media (max-width: 600px) {
   main { padding: 16px; }
   .tabs { overflow-x: auto; }

@@ -10,8 +10,8 @@ from __future__ import annotations
 import logging
 from dataclasses import dataclass, field
 
-from gonzo.client import GonzoClient, RefusalError, StructuredOutputError
-from gonzo.config import MODES
+from gonzo.client import GonzoClient, RefusalError, StructuredOutputError, WireSource
+from gonzo.config import MODES, wire_tool
 from gonzo.scoring.judge import Judge
 from gonzo.scoring.metrics import score_text
 from gonzo.scoring.report import CombinedReport
@@ -27,16 +27,27 @@ class Draft:
     report: CombinedReport
     revision: int
     directive: VarianceDirective
+    sources: list[WireSource] = field(default_factory=list)
 
 
 @dataclass
 class Composer:
-    """Produces a filed piece from an assignment."""
+    """Produces a filed piece from an assignment.
+
+    With `wire=True` every generation call in the run — first draft and
+    revisions alike — carries the web search tool and the wire persona.
+    Revisions rarely search again (the material is already in the draft),
+    but attaching the same tools keeps the cache prefix identical across the
+    run instead of paying a rewrite between draft and revision. Sources
+    accumulate across rounds: a fact pulled for the first draft is still
+    load-bearing in the revision that survives.
+    """
 
     client: GonzoClient
     spec: StyleSpec = field(default_factory=load_spec)
     use_judge: bool = True
     max_revisions: int = 2
+    wire: bool = False
 
     def __post_init__(self) -> None:
         self._director = VarianceDirector(self.spec)
@@ -67,21 +78,27 @@ class Composer:
             "apology for the register."
         )
 
-        text = self.client.complete(
-            system_prompt=self.spec.system_prompt(),
-            messages=[{"role": "user", "content": prompt}],
-            mode="compose",
-        ).text
+        completion = self._generate(prompt)
+        sources = list(completion.sources)
+        text = completion.text
 
-        best = Draft(text, self._assess(text, assignment), 0, directive)
+        best = Draft(text, self._assess(text, assignment), 0, directive, list(sources))
         if not revise:
             return best
 
         for attempt in range(1, self.max_revisions + 1):
             if best.report.passed:
                 break
-            revised = self._revise(assignment, best, directive, prompt)
-            candidate = Draft(revised, self._assess(revised, assignment), attempt, directive)
+            revised, new_sources = self._revise(assignment, best, directive, prompt)
+            for source in new_sources:
+                if all(source.url != s.url for s in sources):
+                    sources.append(source)
+            # Each draft snapshots the accumulated sources at its own moment:
+            # if this candidate loses, its searches must not be attributed to
+            # the draft that actually ships.
+            candidate = Draft(
+                revised, self._assess(revised, assignment), attempt, directive, list(sources)
+            )
             # Keep the better draft — a revision can overcorrect, and shipping
             # a worse piece because it came later would be silly.
             if candidate.report.score > best.report.score or candidate.report.passed:
@@ -89,13 +106,21 @@ class Composer:
 
         return best
 
+    def _generate(self, prompt: str):
+        return self.client.complete(
+            system_prompt=self.spec.system_prompt(wire=self.wire),
+            messages=[{"role": "user", "content": prompt}],
+            mode="compose",
+            tools=[wire_tool()] if self.wire else None,
+        )
+
     def _revise(
         self,
         assignment: str,
         draft: Draft,
         directive: VarianceDirective,
         original_prompt: str,
-    ) -> str:
+    ) -> tuple[str, list[WireSource]]:
         prompt = (
             f"{original_prompt}\n\n"
             "<previous_draft>\n"
@@ -109,11 +134,8 @@ class Composer:
             "specifics, the targets, the good lines. Do not simply pad it, and do "
             "not mention the critique. Output the prose only."
         )
-        return self.client.complete(
-            system_prompt=self.spec.system_prompt(),
-            messages=[{"role": "user", "content": prompt}],
-            mode="compose",
-        ).text
+        completion = self._generate(prompt)
+        return completion.text, list(completion.sources)
 
     def _assess(self, text: str, assignment: str) -> CombinedReport:
         metrics = score_text(text, self.spec)

@@ -28,6 +28,41 @@ JUDGE_MODEL = os.environ.get("GONZO_JUDGE_MODEL", "claude-sonnet-5")
 # model we would then have to maintain.
 FALLBACK_BETA = "server-side-fallback-2026-07-01"
 
+# --- the wire ---------------------------------------------------------------
+# The Anthropic server-side web search tool, surfaced in-world as "the wire".
+# Off by default: each search bills separately ($10 per 1,000 as of 2026) and
+# it changes the product's character — an archivist with a cutoff becomes a
+# working reporter with a live line. Turning it on also swaps the persona's
+# capability statement, so the narrator never claims machinery it lacks in
+# either direction.
+#
+# The basic tool version is pinned deliberately. Newer versions
+# (web_search_20260209+) default `allowed_callers` toward code-execution
+# pipelines rather than direct model use; the plain version searches directly
+# with no extra configuration. Overridable for users tracking newer versions.
+WIRE_TOOL_VERSION = os.environ.get("GONZO_WIRE_TOOL", "web_search_20250305")
+
+WIRE_DEFAULT = os.environ.get("GONZO_WIRE", "").strip().lower() in {"1", "true", "yes", "on"}
+
+# Searches allowed per request. The persona tells the narrator the wire is
+# metered; this is the meter. Kept low because a chat turn rarely needs more
+# than a pull or two, and compose passes the same budget per draft.
+WIRE_MAX_SEARCHES = int(os.environ.get("GONZO_WIRE_MAX_SEARCHES", "3"))
+
+# A turn that searches can come back with stop_reason="pause_turn" — the API
+# asking us to send the partial content back and let the model continue. This
+# caps the resume loop so a pathological turn cannot run forever.
+WIRE_MAX_CONTINUATIONS = 6
+
+
+def wire_tool(max_uses: int | None = None) -> dict:
+    """The `tools` entry that turns the wire on for one request."""
+    return {
+        "type": WIRE_TOOL_VERSION,
+        "name": "web_search",
+        "max_uses": max_uses or WIRE_MAX_SEARCHES,
+    }
+
 
 @dataclass(frozen=True)
 class ModeConfig:

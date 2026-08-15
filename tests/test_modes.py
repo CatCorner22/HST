@@ -1,11 +1,17 @@
 """Mode wiring: where the directive goes, and what history keeps."""
 
+from pathlib import Path
 from unittest.mock import MagicMock
 
 import pytest
 
+from gonzo.client import WireSource
+from gonzo.config import wire_tool
 from gonzo.modes.chat import ChatSession
+from gonzo.modes.compose import Composer
 from gonzo.modes.transfer import Transferrer
+
+FIXTURES = Path(__file__).parent / "fixtures"
 
 
 @pytest.fixture
@@ -69,6 +75,103 @@ class TestChatSession:
         sent = fake_client.complete.call_args.kwargs["messages"]
         assert sent[0]["content"] == "first"
         assert sent[1]["content"] == "a reply"
+
+
+class TestChatWire:
+    def test_wireless_by_default(self, fake_client):
+        """No tools, and the persona that denies having any — the pairing is
+        the contract, in both directions."""
+        session = ChatSession(client=fake_client, seed=5)
+        session.send("what about the airport")
+
+        kwargs = fake_client.complete.call_args.kwargs
+        assert kwargs["tools"] is None
+        assert "no search desk" in " ".join(kwargs["system_prompt"].split())
+
+    def test_wire_attaches_tool_and_swaps_persona_together(self, fake_client):
+        session = ChatSession(client=fake_client, seed=5, wire=True)
+        session.send("what about the airport")
+
+        kwargs = fake_client.complete.call_args.kwargs
+        assert kwargs["tools"] == [wire_tool()]
+        normalized = " ".join(kwargs["system_prompt"].split())
+        assert "The desk has installed a wire" in normalized
+        assert "no search desk" not in normalized
+
+    def test_records_cited_sources_but_keeps_history_clean(self, fake_client):
+        source = WireSource(url="https://apnews.com/x", title="AP")
+        fake_client.complete.return_value = MagicMock(text="a reply", sources=[source])
+        session = ChatSession(client=fake_client, seed=5, wire=True)
+        session.send("what happened today")
+
+        assert session.last_sources == [source]
+        # Search plumbing must not enter history — the next turn re-sends
+        # history verbatim, and stale tool blocks would be re-billed and
+        # re-interpreted as conversation.
+        assert session.history[1] == {"role": "assistant", "content": "a reply"}
+
+
+class TestComposeWire:
+    def test_draft_carries_its_sources(self):
+        source = WireSource(url="https://sec.gov/filing", title="10-K")
+        client = MagicMock()
+        client.complete.return_value = MagicMock(text="the piece", sources=[source])
+        composer = Composer(client=client, use_judge=False, wire=True)
+
+        draft = composer.compose("the hearing", revise=False)
+
+        assert draft.sources == [source]
+        assert client.complete.call_args.kwargs["tools"] == [wire_tool()]
+
+    def test_wireless_compose_sends_no_tools(self):
+        client = MagicMock()
+        client.complete.return_value = MagicMock(text="the piece", sources=[])
+        composer = Composer(client=client, use_judge=False)
+        composer.compose("the hearing", revise=False)
+        assert client.complete.call_args.kwargs["tools"] is None
+
+    def test_revision_sources_accumulate_and_deduplicate(self):
+        """The surviving draft owes its facts to every round that fed it, so
+        sources accumulate — but one URL cited in two rounds is one source."""
+        source_a = WireSource(url="https://a.example/1", title="A")
+        source_b = WireSource(url="https://b.example/2", title="B")
+        # First draft: flat prose that fails the metrics. Revision: the target
+        # fixture, which passes — so the revision deterministically wins.
+        winning = (FIXTURES / "target.txt").read_text(encoding="utf-8")
+        client = MagicMock()
+        client.complete.side_effect = [
+            MagicMock(text="It is what it is. " * 40, sources=[source_a]),
+            MagicMock(text=winning, sources=[source_a, source_b]),
+        ]
+        composer = Composer(client=client, use_judge=False, wire=True)
+
+        draft = composer.compose("the hearing")
+
+        assert draft.report.passed, "the revision fixture must win for this test to bite"
+        assert draft.sources == [source_a, source_b]
+
+
+class TestWireFlagTriState:
+    """--wire / --no-wire share a dest with default=None, and argparse's
+    store_false action carries its own default of True — if that default ever
+    won, every bare `gonzo chat` would silently attach a billed search tool.
+    """
+
+    @pytest.mark.parametrize(
+        ("argv", "expected"),
+        [
+            (["chat"], None),
+            (["chat", "--wire"], True),
+            (["chat", "--no-wire"], False),
+            (["write", "x"], None),
+            (["write", "x", "--wire"], True),
+            (["write", "x", "--no-wire"], False),
+        ],
+    )
+    def test_flag_resolution(self, argv, expected):
+        from gonzo.cli import build_parser
+
+        assert build_parser().parse_args(argv).wire is expected
 
 
 class TestTransferFactCheck:

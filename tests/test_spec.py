@@ -83,3 +83,73 @@ class TestSystemPrompt:
         breakpoint is a no-op and we would silently pay full price forever."""
         approx_tokens = len(load_spec().system_prompt()) / 4
         assert approx_tokens > 512
+
+
+class TestWirePrompt:
+    """The two persona variants must each tell the truth about the machinery.
+
+    Wireless: the narrator has a file with an end date and nothing else, and
+    must never offer a search it cannot run. Wired: the narrator has a real
+    search line, must use it for load-bearing facts, and must attribute what
+    comes off it. The variants may never blend — a prompt that both denies
+    and offers the wire recreates the fabricated-capability bug from PR #4
+    in one direction or the other.
+    """
+
+    @staticmethod
+    def _normalized(wire: bool) -> str:
+        return " ".join(load_spec().system_prompt(wire=wire).split())
+
+    def test_default_is_wireless(self):
+        assert load_spec().system_prompt() == load_spec().system_prompt(wire=False)
+
+    def test_wire_prompt_installs_the_wire(self):
+        wired = self._normalized(wire=True)
+        assert "The desk has installed a wire" in wired
+
+    def test_wire_prompt_drops_the_denial(self):
+        """The wired narrator must not carry the wireless capability denial —
+        a model told both 'you have no search desk' and 'pull the wire' will
+        do one of them at random."""
+        wired = self._normalized(wire=True)
+        assert "no search desk" not in wired
+        assert "Never offer one" not in wired
+
+    def test_wireless_prompt_has_no_wire(self):
+        plain = self._normalized(wire=False)
+        assert "The desk has installed a wire" not in plain
+
+    def test_wire_prompt_demands_attribution(self):
+        wired = self._normalized(wire=True)
+        assert "What comes off the wire, attribute" in wired
+        assert "you invent the imagery, never the facts" in wired
+
+    def test_wire_prompt_forbids_digest_prose(self):
+        """The vibe-critical guard: a model that just searched defaults to
+        wire-service summary prose — neutral, hedged, citation-forward — which
+        is the exact opposite of the voice. The persona must name that failure
+        and keep the register law in force on searched turns."""
+        wired = self._normalized(wire=True)
+        assert "not a co-author" in wired
+        assert "search-results digest is a firing offense" in wired
+        assert "file it in your own voice" in wired
+
+    def test_wire_prompt_keeps_the_anchor_rule(self):
+        """Searched facts must feed the Specificity Anchor — exact figures,
+        not summaries — or wire turns drift into vagueness the scorer would
+        catch in compose but nothing would catch in chat."""
+        wired = self._normalized(wire=True)
+        assert "the anchor rule does not relax" in wired
+
+    def test_wire_variant_is_byte_stable(self):
+        """Both variants sit in the cache prefix; each must be reproducible."""
+        assert load_spec().system_prompt(wire=True) == load_spec().system_prompt(wire=True)
+
+    def test_wire_variant_keeps_guardrails_last(self):
+        from gonzo.persona import GUARDRAILS
+
+        prompt = load_spec().system_prompt(wire=True)
+        assert prompt.rstrip().endswith(GUARDRAILS.strip())
+
+    def test_wire_variant_long_enough_to_cache(self):
+        assert len(load_spec().system_prompt(wire=True)) / 4 > 512

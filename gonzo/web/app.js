@@ -91,6 +91,38 @@ function escapeHTML(s) {
   return s.replace(/[&<>]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]));
 }
 
+// Appends an "off the wire" source list. Built with DOM nodes, not innerHTML:
+// URLs and titles come from live web search results and must render as text
+// and href only. Non-http(s) URLs are dropped outright.
+function renderSources(container, sources) {
+  if (!sources || !sources.length) return;
+  const div = document.createElement('div');
+  div.className = 'sources';
+  const label = document.createElement('div');
+  label.className = 'sources-label';
+  label.textContent = 'off the wire';
+  div.appendChild(label);
+  for (const s of sources) {
+    let url;
+    try { url = new URL(s.url); } catch (_) { continue; }
+    if (url.protocol !== 'https:' && url.protocol !== 'http:') continue;
+    const row = document.createElement('div');
+    row.className = 'source';
+    const a = document.createElement('a');
+    a.href = url.href;
+    a.target = '_blank';
+    a.rel = 'noopener noreferrer';
+    a.textContent = s.title || url.hostname;
+    row.appendChild(a);
+    const host = document.createElement('span');
+    host.className = 'source-host';
+    host.textContent = ` ${url.hostname}`;
+    row.appendChild(host);
+    div.appendChild(row);
+  }
+  container.appendChild(div);
+}
+
 function busy(button, on, label) {
   button.disabled = on;
   if (on) { button.dataset.label = button.textContent; button.textContent = label || 'Working…'; }
@@ -119,6 +151,12 @@ $('chat-form').addEventListener('submit', async (event) => {
 
   addTurn('you', 'you').textContent = message;
   const body = addTurn('correspondent', 'bot');
+  // Separate children for wire notes and reply text: streaming deltas append
+  // with textContent, which would destroy sibling nodes on a shared parent.
+  const notes = document.createElement('div');
+  notes.className = 'wire-notes';
+  const reply = document.createElement('div');
+  body.append(notes, reply);
   $('chat-directive').textContent = '';
 
   let res;
@@ -126,11 +164,11 @@ $('chat-form').addEventListener('submit', async (event) => {
     res = await fetch('/api/chat', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ message, session_id: sessionId }),
+      body: JSON.stringify({ message, session_id: sessionId, wire: $('chat-wire').checked }),
     });
   } catch (err) {
     body.parentElement.classList.add('err');
-    body.textContent = `connection failed: ${err.message}`;
+    reply.textContent = `connection failed: ${err.message}`;
     return;
   }
 
@@ -158,20 +196,34 @@ $('chat-form').addEventListener('submit', async (event) => {
           sessionId = payload.session_id;
           break;
         case 'delta':
-          body.textContent += payload.text;
+          reply.textContent += payload.text;
           transcript.scrollTop = transcript.scrollHeight;
           break;
+        case 'wire': {
+          const note = document.createElement('div');
+          note.className = 'wire-note';
+          note.textContent = payload.query
+            ? `checking the wire: ${payload.query}`
+            : 'checking the wire…';
+          notes.appendChild(note);
+          transcript.scrollTop = transcript.scrollHeight;
+          break;
+        }
         case 'reset':
           // A server-side fallback superseded everything streamed so far: the
-          // model that produced it went on to decline. Drop it.
-          body.textContent = '';
+          // model that produced it went on to decline. Drop it — searches
+          // included, since they belonged to the turn that was abandoned.
+          reply.textContent = '';
+          notes.innerHTML = '';
           break;
         case 'error':
           body.parentElement.classList.add('err');
-          body.textContent += `\n[${payload.kind}: ${payload.message}]`;
+          reply.textContent += `\n[${payload.kind}: ${payload.message}]`;
           break;
         case 'done':
           $('chat-directive').textContent = describeDirective(payload.directive);
+          renderSources(body, payload.sources);
+          transcript.scrollTop = transcript.scrollHeight;
           break;
       }
     }
@@ -209,11 +261,13 @@ $('compose-go').addEventListener('click', async () => {
       seed: seedRaw ? Number(seedRaw) : null,
       judge: $('compose-judge').checked,
       revise: $('compose-revise').checked,
+      wire: $('compose-wire').checked,
     });
     out.innerHTML =
       `<div class="prose">${escapeHTML(data.text)}</div>` +
       `<p class="note">${escapeHTML(describeDirective(data.directive))} · revision ${data.revision}</p>` +
       renderReport(data.report);
+    renderSources(out, data.sources);
   } catch (err) {
     out.innerHTML = `<p class="note warn">${escapeHTML(err.message)}</p>`;
   } finally {
