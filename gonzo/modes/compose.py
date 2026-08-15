@@ -58,8 +58,13 @@ class Composer:
             f"{directive.render()}\n\n"
             f"<length>{cfg.length_note}</length>\n\n"
             f"<assignment>\n{assignment}\n</assignment>\n\n"
-            "File the piece. Output the prose only — no title, no preamble, no "
-            "notes about what you did, no closing summary."
+            "File the piece. Output the prose only — no title, no notes about "
+            "what you did, no closing summary, no commentary from outside the "
+            "piece. In-world furniture is prose, not preamble: a dateline, a "
+            "bracketed editor's note, a memo to the desk, a transcript scrap "
+            "belong in the piece when it calls for them, unexplained. Commit "
+            "completely — no hedged qualifiers, no balancing caveats, no "
+            "apology for the register."
         )
 
         text = self.client.complete(

@@ -83,3 +83,50 @@ class TestRendering:
     def test_instructs_against_leaking_itself(self):
         """The directive is scaffolding; it must not show up as headings."""
         assert "Never mention it" in VarianceDirector().draw(seed=3).render()
+
+
+class TestDirectiveCoherence:
+    """The opening move and the template's first beat must not fight.
+
+    Regression: drawing them independently produced a directive at war with
+    itself in ~45% of long-form draws — "open on weather" against eulogy's
+    "state what ended, flat" — and a model given two contradictory openings
+    writes a muddled compromise.
+    """
+
+    def test_longform_openings_respect_template_pools(self):
+        spec = load_spec()
+        pools = {t["name"]: t.get("compatible_openings") for t in spec.templates}
+        director = VarianceDirector(spec)
+        for i in range(300):
+            d = director.draw(seed=i, longform=True)
+            allowed = pools[d.template]
+            if allowed:
+                assert d.opening_move in allowed, (
+                    f"seed {i}: {d.opening_move} not compatible with {d.template}"
+                )
+
+    def test_every_template_declares_a_pool(self):
+        """A template without a pool silently reverts to independent drawing —
+        legal, but a new template should make the choice deliberately."""
+        for template in load_spec().templates:
+            assert template.get("compatible_openings"), template["name"]
+
+    def test_longform_render_carries_the_bridge_line(self):
+        text = VarianceDirector().draw(seed=3, longform=True).render()
+        assert "entry into beat 1" in text
+
+    def test_shortform_contrast_is_a_turn_not_a_mandate(self):
+        """Short replies get 'turn toward this band once', never the full
+        occupation demand — cramming a register tour into 100 words is the
+        tell of an imitation."""
+        text = VarianceDirector().draw(seed=3, longform=False).render()
+        assert "turn toward this band" in text
+        assert "genuinely occupy" not in text
+
+    def test_new_moves_and_domains_are_drawable(self):
+        director = VarianceDirector()
+        moves = {director.draw(seed=i).opening_move for i in range(400)}
+        domains = {director.draw(seed=i).imagery_domain for i in range(400)}
+        assert {"dateline", "mid_dialogue", "aphorism_first"} <= moves
+        assert {"combat", "sport"} <= domains

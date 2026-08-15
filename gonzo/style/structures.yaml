@@ -5,9 +5,10 @@
 templates:
   - name: pretext
     brief: "The assignment is a pretext; the crowd is the story."
+    compatible_openings: [cold_open, inventory, flat_verdict, direct_address, displacement, dateline]
     movements:
       - "Arrive on assignment. State it flatly. Clinical."
-      - "Get distracted immediately by the people around the event."
+      - "Get distracted immediately by the people around the event. Let at least one of them talk, in quotes, in their own idiom."
       - "Follow the distraction into escalating absurdity. Manic."
       - "The event itself happens somewhere offstage. Note that you missed it."
       - "Elegiac break: what the crowd revealed, and what it costs to have seen it."
@@ -15,6 +16,7 @@ templates:
 
   - name: indictment
     brief: "A specific abuse of power, built like a prosecution."
+    compatible_openings: [cold_open, direct_address, flat_verdict]
     movements:
       - "Open on the accused, rendered in bestial imagery. Savage."
       - "Drop to Clinical: the receipts. Dates, numbers, who signed what."
@@ -24,26 +26,53 @@ templates:
 
   - name: descent
     brief: "A straightforward errand that comes apart."
+    compatible_openings: [inventory, flat_verdict, dateline]
     movements:
       - "Clinical: the plan, the inventory, the timetable. Everything in order."
       - "First thing goes wrong. Note it without alarm."
       - "Accelerating failure. Manic. The plan is now theoretical."
+      - "Cook up a replacement plan on the spot — cover story, disguise, escape route — and narrate it deadpan, as if it could work."
       - "Total collapse, rendered in specific, itemized detail."
       - "Elegiac break: the quiet after, and what the errand was really about."
       - "One-line close."
 
   - name: dispatch
     brief: "Filed from the field, against a deadline, with the seams showing."
+    compatible_openings: [cold_open, omen, displacement, dateline]
     movements:
       - "Immediacy artifact — a note on the deadline, the wire, the hour."
       - "Cold open into the scene. Manic."
       - "Interrupt yourself with a Clinical inventory of the surroundings."
       - "Digression into a tangent that is actually the argument."
+      - "One aphoristic line — a general truth mined from the specific mess. Carved, quotable, then abandoned. Never milked."
       - "Elegiac break, arriving without warning."
       - "Abrupt end, mid-thought. The seams stay in."
 
+  - name: proceeding
+    brief: "An official proceeding — hearing, trial, licensing board — where the record convicts itself."
+    compatible_openings: [inventory, dateline, flat_verdict]
+    movements:
+      - "Arrive credentialed and out of place. Clinical: the room, the docket, the hour."
+      - "Let the officials talk in their own language. Transcript scraps, agenda items, verbatim furniture. Deadpan."
+      - "The paranoid hypothetical: imagine, in specific detail, what happens if they find out who you are. Manic."
+      - "Back to the record. One item of testimony that says everything, reported flat."
+      - "Elegiac break: the human stakes the proceeding never once mentioned."
+      - "Close on a line from the record, unadorned. No comment."
+
+  - name: autopsy
+    brief: "A promise measured against its receipts."
+    compatible_openings: [flat_verdict, inventory, direct_address]
+    movements:
+      - "State the promise in its own advertising language, deadpan. Clinical."
+      - "Go to the place where the promise was supposed to be redeemed. Inventory what is actually there — prices, signage, who showed up."
+      - "The manic swerve: the promised version, played straight, escalating until it collapses under its own arithmetic."
+      - "Savage turn on whoever sold it and still collects."
+      - "Elegiac break: the people who believed it, plainly, without adjectives."
+      - "Close on the gap itself — one hard image of the distance between the two. No summary."
+
   - name: eulogy
     brief: "Something is over. Establish it, then refuse to be sentimental about it."
+    compatible_openings: [flat_verdict, inventory, direct_address]
     movements:
       - "State what ended. Flat. Clinical."
       - "The scene of it ending, in specific physical detail."
@@ -51,3 +80,14 @@ templates:
       - "Manic recollection of how it was at its peak."
       - "Extended Elegiac passage. The longest movement of the piece."
       - "Close on a hard image, not a sentiment."
+
+  - name: two_hander
+    brief: "You and an invented companion work the story; it advances through what people say out loud."
+    compatible_openings: [mid_dialogue, cold_open]
+    movements:
+      - "Open mid-argument with the companion — overheard, in quotes, no setup."
+      - "Clinical: who this person is. A trade, an appetite, a reason to be along. Invented whole, borrowed from no one."
+      - "Work the assignment as played scenes — a counter, an office, a checkpoint. Let the locals talk in their own idiom."
+      - "The companion proposes or does the thing that escalates everything. Manic."
+      - "Elegiac break: the one thing the companion says that is not a joke, and the silence after it."
+      - "Close on the last line of dialogue. Nothing after it."

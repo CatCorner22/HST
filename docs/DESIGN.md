@@ -257,6 +257,100 @@ grepping for lowercase `failed` while pytest prints `FAILED` — so it reported
 perfect code and broken tests identically. Recorded here because a broken
 verification harness is indistinguishable from success until you check it.
 
+## The vibe pass
+
+A second fan-out review, run after the debug sweep, aimed at one question: does
+the engine actually capture the *voice*, or a cautious subset of it? Five
+critics (spec, lexicon/structures, persona/judge, mode prompts,
+scorer/fixtures), each feeding a skeptical editor whose brief was to catch
+pastiche-by-instruction — a spec that mandates ten signature moves per piece
+produces imitation, which is the exact failure the engine exists to avoid.
+Twenty-eight proposals survived; none were rejected outright.
+
+### The diagnosis
+
+**The spec taught a narrator who only narrates.** Specificity, register
+dynamics, aimed savagery, the tic budget — all present, all correct, and all in
+service of essayistic monologue. The published work is *dramatized*: the Derby
+piece is a chain of encounters with people talking; the Vegas book advances
+substantially through staged dialogue; the Campaign Trail dispatches run on
+imagined scenarios and portable wisdom lines. Nothing in the spec, lexicon, or
+structures ever made another human speak. The one mention of dialogue in the
+whole system was the endings rule — "end on a line of dialogue" — an
+instruction to end on a voice the model was never taught to produce.
+
+### What changed
+
+**Three new spec sections.** *Scene and Dialogue* (dramatize, don't summarize;
+speech is characterization; invented people may speak freely, real people only
+in words they verifiably said). *The Paranoid Hypothetical* (the imagined
+scenario as signature engine: lunatic premise, immaculate logistics, enter
+conditional and let the grammar slip — budgeted at one per piece). *The Small
+Moves* (the one-word interjection, self-address, the second-person pull, the
+present-tense lurch, the wisdom line — each budgeted, because each is a tic if
+overdone). Plus two stance-level rules: every piece is an autopsy of a promise
+(the gap between what was promised and what showed up), and long is never slow
+(the compression standard the research recorded but the spec never encoded).
+
+**The contest half of the metaphor engine.** The imagery domains encoded only
+decay and judgment — animal, weather, religion, geology. War and the fight
+game, the metaphor engines of the entire political corpus, were missing.
+Added: combat and sport. Also three new opening moves (dateline, mid-dialogue,
+aphorism-first), three new structural templates (the official proceeding, the
+promise-autopsy, the two-hander), and scene beats threaded into the existing
+ones.
+
+**The persona got furniture.** It was almost entirely negation — defined by
+what it isn't. Now it has the standing conditions of the trade (an editor two
+time zones away, a disputed expense account, rooms that cost something and
+smell like something) and an invented companion/foil for composed pieces —
+with hard rules: fresh per piece, never a real person, and never a restaging
+of the tradition's famous seats. The attorney seat is taken; the tic list now
+penalizes the borrowed phrase directly.
+
+**The judge grades the piece as an event, not an essay.** Three new
+dimensions: scene craft, velocity (drag is the defect, never length), and
+comedy — is it actually funny somewhere, and does the laugh land on the
+target? Humorless savagery is an editorial.
+
+**A directive bug: two openings.** The opening move and the structural
+template's first beat both govern the opening paragraphs, and drawing them
+independently produced a directive at war with itself in ~45% of long-form
+draws — "open on weather" against eulogy's "state what ended, flat." Templates
+now declare compatible opening pools and the director redraws inside them;
+incompatible draws measured at 0/500 after the fix, and a mutation test pins
+the guard.
+
+**The scorer can see the scene axis.** Dialogue share, question rate,
+interjection rate, second-person rate — measured and reported, never gated,
+because the voice can legitimately carry a piece with no dialogue at all. The
+sentence splitter learned that a terminator inside a closing quote followed by
+an attribution is not a sentence boundary — attributed dialogue was being
+scored as phantom fragments.
+
+**A second positive fixture.** Calibration had one positive control, and it
+was quiet: clinical/elegiac, zero dialogue. `target_manic.txt` is the opposite
+face — savage/manic-dominant, real dialogue doing receipt-work, a paranoid
+hypothetical with full logistics, interjections, and the unsignposted elegiac
+drop — and it passes the unmodified scorer at 100.0. The scorer now provably
+accepts both faces of the voice.
+
+**Chat got room to riff** (60-350 words, explicit permission to take a
+position, digress, and never both-sides an indictment), compose permits
+in-world furniture (datelines, bracketed editor's notes — prose, not
+preamble), and transfer distinguishes the narrator's frame (voice, allowed)
+from the source's claims (evidence, untouchable).
+
+### Costs and their justification
+
+The cached system prefix grew from ~2,950 to ~4,950 tokens. It rides at
+cache-read rates (~0.1×) after the first request, and the additions are the
+difference between the architecture of the voice and the voice — the review's
+verdict was that the previous spec produced "literary journalism, generic."
+The five-fixture calibration held byte-for-byte through every change; the
+pastiche fixture's tic count rose from 34 to 35 under the expanded penalty
+list while both positive fixtures stayed at 100.0.
+
 ## Verification status
 
 Verified in the build environment:

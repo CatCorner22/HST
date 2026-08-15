@@ -81,9 +81,12 @@ PASS  score 100.0/100   (412 words)
 
 ## How it works
 
-**The style spec** (`gonzo/style/style_spec.md`) is the core artifact: stance,
-the Rhythm Law, the Specificity Anchor, four register bands, the anti-pastiche
-budget, and the prohibitions. It becomes the cached system prompt.
+**The style spec** (`gonzo/style/style_spec.md`) is the core artifact: stance
+(including the autopsy-of-a-promise frame), the Rhythm Law, the Specificity
+Anchor, four register bands, scene and dialogue, the paranoid hypothetical,
+the small moves (interjection, self-address, second-person pull, present-tense
+lurch, wisdom line), the anti-pastiche budget, and the prohibitions. It becomes
+the cached system prompt.
 
 **The Variance Director** (`gonzo/style/variance.py`) replaces `temperature` —
 which Opus 5 rejects outright. Each request draws a seeded assignment: opening
@@ -104,7 +107,7 @@ rule that nothing dynamic may touch the system prompt — a test enforces it.
 ## Tests
 
 ```bash
-pytest              # 109 offline tests, no API key needed
+pytest              # 125 offline tests, no API key needed
 pytest -m live      # 9 adversarial guardrail tests, needs credentials
 ```
 
@@ -121,9 +124,10 @@ guard is mutation-tested — reverted in turn to confirm it actually fails:
 | Fixture | Score | Outcome |
 |---|---|---|
 | flat corporate minutes | 39.2 | fails — uniform rhythm, unanchored |
-| all-tic pastiche | 34.8 | fails — tic budget blown 43× |
+| all-tic pastiche | 34.8 | fails — tic budget blown |
 | **good prose, no elegiac break** | **83.0** | **fails — the thesis under test** |
-| written to spec | 100.0 | passes |
+| written to spec (quiet face: clinical/elegiac) | 100.0 | passes |
+| written to spec (loud face: savage/manic, dialogue) | 100.0 | passes |
 
 ## What it will not do
 

@@ -31,6 +31,20 @@ def target_text() -> str:
 
 
 @pytest.fixture(scope="session")
+def target_manic_text() -> str:
+    """Second positive control: savage/manic-dominant, dialogue-bearing.
+
+    target.txt is clinical/elegiac-leaning and contains no dialogue, no
+    questions, and no interjections; calibrating against it alone overfits the
+    scorer to one register blend. This fixture must pass with the OPPOSITE
+    mix — invective and acceleration dominant, real quoted speech, an
+    imagined-scenario digression — while still dropping into the mandatory
+    elegiac break. The scorer has to accept both faces of the voice.
+    """
+    return _load("target_manic")
+
+
+@pytest.fixture(scope="session")
 def no_elegiac_text() -> str:
     """Well-made long-form prose that never drops into the elegiac band.
 

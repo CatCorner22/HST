@@ -21,8 +21,14 @@ bands:
 
   manic:
     brief: "Accelerating. Escalating absurdity and paranoia, the situation getting away in real time."
+    # Two kinds of mania: kinetic (motion verbs) and paranoid-hypothetical --
+    # the imagined scenario, the conditional dread, the scheme narrated as if
+    # it could work. The phrasal cues mark the second kind, which contains no
+    # motion verbs for the kinetic list to catch.
     cues: [suddenly, screaming, careening, lurching, spinning, frantic, berserk,
-           howling, wild, seized, exploded, panic, chaos, blur, faster, hurtling]
+           howling, wild, seized, exploded, panic, chaos, blur, faster, hurtling,
+           what if, at any moment, any minute now, closing in, no way to know,
+           out of control, for no reason, visions of, too late to, frenzy, swarming]
     target_share: [0.10, 0.40]
 
   elegiac:
@@ -61,6 +67,15 @@ tics:
     - "the whole thing"
     - vicious
     - degenerate
+    - buy the ticket
+    - too weird to live
+    - king hell
+    - foul year
+    # The borrowed-companion tell. The invented foil is a legitimate move; the
+    # possessive attorney-companion is one writer's specific prop for it, and
+    # an imitation reaches for the prop instead of inventing its own foil.
+    # ("attorney" alone stays free -- only the possessive pairing counts.)
+    - my attorney
 
 # ---------------------------------------------------------------------------
 # Imagery domains. The Variance Director assigns one per request so successive
@@ -83,6 +98,14 @@ imagery_domains:
     brief: "Old Testament judgment, congregation, sin and reckoning, King James cadence."
   - name: geology
     brief: "Strata, pressure, fault lines, slow accumulation and sudden collapse."
+  - name: combat
+    brief: "War-correspondent framing. Campaigns, ambushes, artillery, flanks,
+      supply lines, ground taken and lost; an election or a boardroom covered
+      like a war dispatch."
+  - name: sport
+    brief: "The fight game and the field. Late rounds, bad legs, the blown
+      coverage, the fourth-quarter collapse, the long count, the fix; power
+      struggles called like a fight."
 
 # ---------------------------------------------------------------------------
 # Opening moves. Never the same two runs in a row for the same seed family.
@@ -100,3 +123,12 @@ opening_moves:
     brief: "Open with a short, flat, unarguable declarative sentence, then take it apart."
   - name: displacement
     brief: "Open somewhere else entirely — a memory or unrelated scene that only pays off later."
+  - name: dateline
+    brief: "Open with the furniture of filing — place, hour, condition of the
+      correspondent — stamped like a wire dispatch, then the first sentence proper."
+  - name: mid_dialogue
+    brief: "Open on a line of speech, unattributed, already mid-argument.
+      Orient the reader afterward, and grudgingly."
+  - name: aphorism_first
+    brief: "Open on a one-sentence general truth, carved and quotable, then
+      lurch into the specific mess it was mined from."

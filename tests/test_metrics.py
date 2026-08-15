@@ -143,3 +143,79 @@ class TestEdgeCases:
 
     def test_single_sentence_does_not_crash(self):
         assert score_text("One short line.").word_count == 3
+
+
+class TestSecondTarget:
+    """The dialogue-bearing positive control.
+
+    One positive fixture means calibration is overfit to one register mix.
+    This one is loud where target.txt is quiet: savage/manic-dominant, real
+    dialogue, an interjection or two, a paranoid-hypothetical digression --
+    and it must clear every gate anyway, including the elegiac break.
+    """
+
+    def test_passes(self, target_manic_text):
+        report = score_text(target_manic_text)
+        assert report.passed, f"failures: {report.failures}"
+        assert report.score >= 80
+
+    def test_register_mix_is_the_opposite_face(self, target_manic_text):
+        report = score_text(target_manic_text)
+        loud = report.band_shares.get("savage", 0.0) + report.band_shares.get("manic", 0.0)
+        assert loud >= 0.5, f"expected savage+manic dominant, shares: {report.band_shares}"
+        assert report.has_elegiac
+
+    def test_scene_craft_is_visible(self, target_manic_text):
+        """The metrics the original corpus never exercised must register here."""
+        report = score_text(target_manic_text)
+        assert report.dialogue_share > 0.04
+        assert report.question_rate > 0
+        assert report.interjection_rate > 0
+
+    def test_outscores_negative_controls(self, flat_text, pastiche_text, target_manic_text):
+        score = score_text(target_manic_text).score
+        assert score > score_text(flat_text).score + 25
+        assert score > score_text(pastiche_text).score + 25
+
+    def test_tic_budget_respected(self, target_manic_text):
+        report = score_text(target_manic_text)
+        assert report.tic_rate_per_500 <= report.tic_budget
+        assert not report.tic_violations
+
+
+class TestSceneCraft:
+    """Scene-craft metrics: measured and reported, never gated."""
+
+    def test_dialogue_share_measures_quoted_words(self):
+        r = score_text('"Get in the car," he said. The road was empty and long.')
+        assert 0.2 < r.dialogue_share < 0.5
+
+    def test_prose_without_dialogue_reports_zero(self, target_text):
+        assert score_text(target_text).dialogue_share == 0.0
+
+    def test_question_and_interjection_rates(self):
+        text = "Why not? The county recorded the deed on March 4 and nobody said a word."
+        r = score_text(text)
+        assert r.question_rate == 0.5
+        assert r.interjection_rate == 0.5
+
+    def test_second_person_counts_narration_only(self):
+        spoken = score_text('"You will regret this," he said. The road was empty tonight.')
+        assert spoken.second_person_rate == 0.0
+        narrated = score_text("You could smell it from the road, a long way out.")
+        assert narrated.second_person_rate > 0
+
+    def test_no_scene_craft_gates(self, target_text):
+        """target.txt has zero dialogue and must keep passing untouched."""
+        report = score_text(target_text)
+        assert report.dialogue_share == 0.0
+        assert report.question_rate == 0.0
+        assert report.passed
+
+    def test_attribution_is_not_a_phantom_sentence(self):
+        from gonzo.scoring.metrics import _sentences
+
+        assert len(_sentences('"You cannot park there!" he said.')) == 1
+        assert len(_sentences('"Who signed it?" the clerk asked. He shrugged.')) == 2
+        # A quote-final terminator followed by a new sentence still splits.
+        assert len(_sentences('"Get out." The room went quiet.')) == 2
