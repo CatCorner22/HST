@@ -47,9 +47,16 @@ class ChatSession:
         and this block changes every turn.
         """
         # Vary the seed per turn so a fixed session seed still produces motion
-        # across the conversation while staying reproducible end to end.
+        # across the conversation while staying reproducible end to end. The
+        # unseeded path mixes the turn counter into the basis for the same
+        # reason: both production surfaces default to seed=None, and a basis
+        # of the bare text meant "go on" drew the identical directive every
+        # time it was typed — converging replies onto one register, which is
+        # exactly what this machinery exists to prevent.
         turn_seed = None if self.seed is None else self.seed + self._turn
-        directive = self._director.draw(seed=turn_seed, basis=user_text, longform=False)
+        directive = self._director.draw(
+            seed=turn_seed, basis=f"turn {self._turn}: {user_text}", longform=False
+        )
         self.last_directive = directive
 
         cfg = MODES["chat"]

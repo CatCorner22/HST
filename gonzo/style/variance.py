@@ -43,10 +43,16 @@ class VarianceDirective:
     imagery_brief: str
     template: str | None = None
     template_movements: tuple[str, ...] = ()
+    # Long-form register contract (mandatory elegiac, full occupation of the
+    # contrast band) — carried separately from `template` because transfer
+    # needs the contract without the structure: compose templates mandate
+    # invented scenes and companions, which a fact-preserving restyle is
+    # forbidden to add.
+    longform: bool = False
 
     def render(self) -> str:
         """Render as an instruction block for the message stream."""
-        if self.template:
+        if self.longform:
             contrast_line = (
                 f"REQUIRED CONTRAST REGISTER — {self.contrast_band} "
                 "(you must genuinely occupy this band somewhere in the piece, not "
@@ -127,11 +133,19 @@ class VarianceDirector:
         seed: int | None = None,
         basis: str = "",
         longform: bool = False,
+        structure: bool = True,
     ) -> VarianceDirective:
         """Draw a directive.
 
         `seed` wins if given; otherwise the seed is derived from `basis` so the
         same assignment reproduces. Passing neither draws at random.
+
+        `structure=False` grants the long-form register contract (mandatory
+        elegiac, genuine occupation) without a structural template. Transfer
+        needs this: compose templates mandate invented scenes, dialogue, and
+        companions — beats that directly contradict a restyle's "add no fact"
+        constraint, and one draw in ten was injecting the companion the
+        persona explicitly bans from restyling work.
         """
         if seed is None:
             seed = self.seed_from(basis) if basis else random.getrandbits(53)
@@ -155,7 +169,7 @@ class VarianceDirector:
 
         template_name: str | None = None
         movements: tuple[str, ...] = ()
-        if longform:
+        if longform and structure:
             template = rng.choice(self.spec.templates)
             template_name = template["name"]
             movements = tuple(template["movements"])
@@ -182,4 +196,5 @@ class VarianceDirector:
             imagery_brief=domain["brief"],
             template=template_name,
             template_movements=movements,
+            longform=longform,
         )

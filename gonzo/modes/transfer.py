@@ -22,9 +22,13 @@ from gonzo.style.variance import VarianceDirector
 # sentence's closing punctuation, so "$4.3 million." in the source became the
 # token "$4.3." and never matched the "$4.3" that did survive in the output --
 # reporting a preserved figure as dropped.
+# The time branch ends on (?!\d), not \b: "4:15pm" has no word boundary
+# between the minutes and the meridiem, so \b failed the branch and the bare
+# number rule shredded the time into '4' and '15' -- which then collided with
+# unrelated numbers and let a genuinely dropped time pass as preserved.
 _FACT = re.compile(
     r"[$£€]\s?\d[\d,.]*(?<![.,])"
-    r"|\b\d{1,2}:\d{2}\b"
+    r"|\b\d{1,2}:\d{2}(?!\d)"
     r"|\b\d[\d,.]*(?<![.,])\s*%"
     r"|\b\d[\d,.]*(?<![.,])"
 )
@@ -52,10 +56,18 @@ class Transferrer:
     def transfer(self, source: str, *, seed: int | None = None) -> TransferResult:
         # Grade and instruct on the same terms. The scorer treats anything over
         # LONGFORM_MIN_WORDS as long-form -- which mandates register motion and
-        # an elegiac break -- so a long restyle drawn with longform=False was
-        # being judged against requirements it was never given.
-        longform = len(_words(source)) >= LONGFORM_MIN_WORDS
-        directive = self._director.draw(seed=seed, basis=source, longform=longform)
+        # an elegiac break -- but it measures the OUTPUT, and this mode's own
+        # length budget licenses the output to run 50% over the source. So the
+        # long-form contract kicks in for any source whose budget-compliant
+        # restyle could reach the threshold; instructing from the source's
+        # length alone left a 267-399-word window where a legal 400+-word
+        # restyle was failed for missing an elegiac break it was never asked
+        # to write. `structure=False`: the register contract without a compose
+        # template, whose invented-scene beats a restyle must not follow.
+        longform = 1.5 * len(_words(source)) >= LONGFORM_MIN_WORDS
+        directive = self._director.draw(
+            seed=seed, basis=source, longform=longform, structure=False
+        )
         cfg = MODES["transfer"]
 
         prompt = (
@@ -107,6 +119,9 @@ class Transferrer:
         numerals reliably is a much larger problem than this check is worth.
         Treat a flag as "look at this", not as proof a fact was lost.
         """
-        source_facts = {f.strip() for f in _FACT.findall(source)}
-        output_facts = {f.strip() for f in _FACT.findall(output)}
+        # Normalize internal whitespace: the currency and percent branches can
+        # capture "$ 4.3" or "12 %", and a restyle that only tightens spacing
+        # must not read as a dropped fact.
+        source_facts = {re.sub(r"\s+", "", f) for f in _FACT.findall(source)}
+        output_facts = {re.sub(r"\s+", "", f) for f in _FACT.findall(output)}
         return sorted(source_facts - output_facts)

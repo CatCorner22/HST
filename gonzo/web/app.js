@@ -131,6 +131,11 @@ function busy(button, on, label) {
 
 // ---- chat (SSE) ----------------------------------------------------------
 let sessionId = null;
+// Abort + generation guard for the in-flight stream. Reset while streaming
+// used to leave the old stream running: its late events silently resurrected
+// the cleared session id and repainted the stale directive over the fresh UI.
+let chatAbort = null;
+let chatGen = 0;
 const transcript = $('transcript');
 
 function addTurn(who, cls) {
@@ -159,14 +164,19 @@ $('chat-form').addEventListener('submit', async (event) => {
   body.append(notes, reply);
   $('chat-directive').textContent = '';
 
+  chatAbort = new AbortController();
+  const gen = ++chatGen;
+
   let res;
   try {
     res = await fetch('/api/chat', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ message, session_id: sessionId, wire: $('chat-wire').checked }),
+      signal: chatAbort.signal,
     });
   } catch (err) {
+    if (gen !== chatGen) return;   // aborted by reset — the wipe was the point
     body.parentElement.classList.add('err');
     reply.textContent = `connection failed: ${err.message}`;
     return;
@@ -177,9 +187,11 @@ $('chat-form').addEventListener('submit', async (event) => {
   const decoder = new TextDecoder();
   let buffer = '';
 
+  try {
   while (true) {
     const { done, value } = await reader.read();
     if (done) break;
+    if (gen !== chatGen) { reader.cancel(); return; }  // superseded by reset
     buffer += decoder.decode(value, { stream: true });
 
     const frames = buffer.split('\n\n');
@@ -228,9 +240,21 @@ $('chat-form').addEventListener('submit', async (event) => {
       }
     }
   }
+  } catch (err) {
+    // A dropped connection mid-stream must not present a truncated reply as
+    // finished — the missing 'done' event was the only clue, and it's easy
+    // to miss a directive line that never updated.
+    if (gen !== chatGen) return;
+    body.parentElement.classList.add('err');
+    reply.textContent += `\n[connection lost — this reply may be incomplete]`;
+  }
 });
 
 $('chat-reset').addEventListener('click', async () => {
+  // Kill any in-flight stream first: its late events would resurrect the
+  // cleared session id and repaint the stale directive over the fresh UI.
+  chatGen++;
+  if (chatAbort) chatAbort.abort();
   if (sessionId) await fetch(`/api/session/${sessionId}`, { method: 'DELETE' });
   sessionId = null;
   transcript.innerHTML = '';

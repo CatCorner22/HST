@@ -31,14 +31,24 @@ from gonzo.style.spec import StyleSpec, load_spec
 # boundary mid-number, which inflated sentence_count and inverted every rhythm
 # metric derived from it.
 # Titles and the like: these are never the last word of a sentence, so their
-# period is always protected.
+# period is always protected. Entries here must not be ordinary English words
+# — a homograph ("no", "sun") protected unconditionally merges real sentence
+# boundaries ("The answer was no. Nobody argued." became one sentence),
+# deflating fragment counts and manufacturing false tic-adjacency violations.
+# "st" stays despite the homograph risk: "St. Louis"-class place names are
+# far more common in this prose than a street abbreviation at sentence end,
+# and the numeric rule below cannot save a name followed by a capital.
 _ABBREV_ALWAYS = (
     "mr", "mrs", "ms", "dr", "prof", "rev", "hon", "sr", "jr", "st",
-    "vs", "no", "vol", "fig", "ave", "blvd", "rd", "ln", "ct", "mt",
+    "vs", "vol", "ave", "blvd", "rd", "ln", "ct", "mt",
     "jan", "feb", "mar", "apr", "jun", "jul", "aug", "sep", "sept", "oct", "nov", "dec",
-    "mon", "tue", "wed", "thu", "fri", "sat", "sun",
+    "mon", "tue", "thu", "fri",
     "e.g", "i.e", "cf", "approx",
 )
+# Homographs of common words that are abbreviations only in numeric contexts:
+# "No. 7", "Fig. 3", "Sat. 4 p.m.". Their period is protected only when a
+# digit follows; "He stared at the sun. Then it was gone." splits normally.
+_ABBREV_NUMERIC = ("no", "fig", "wed", "sat", "sun")
 # These CAN end a sentence ("...by 4:15 p.m. Nobody left."), so their period is
 # protected only when what follows is not the start of a new sentence.
 _ABBREV_MEDIAL = (
@@ -50,6 +60,10 @@ _ABBREV_RE = re.compile(
     r"(?<!\w)(?:" + "|".join(re.escape(a) for a in _ABBREV_ALWAYS) + r")\.",
     re.I,
 )
+_ABBREV_NUMERIC_RE = re.compile(
+    r"(?<!\w)(?:" + "|".join(re.escape(a) for a in _ABBREV_NUMERIC) + r")\.(?=\s*\d)",
+    re.I,
+)
 # Protect only when NOT followed by whitespace + a capital or digit, i.e. only
 # when it is genuinely mid-sentence.
 #
@@ -58,9 +72,13 @@ _ABBREV_RE = re.compile(
 # [A-Z0-9] also matches lowercase, which made the lookahead fire on ANY
 # following letter and silently disabled the whole rule. The inline flag turns
 # case-sensitivity back on for the class alone.
+# The optional closer class lets the lookahead see a following capital
+# through a closing quote — '"Bring maps, water, etc." He left.' is two
+# sentences, and without it the protected period defeated the quote-final
+# split branch downstream.
 _ABBREV_MEDIAL_RE = re.compile(
     r"(?<!\w)(?:" + "|".join(re.escape(a) for a in _ABBREV_MEDIAL) + r")\."
-    r"(?!\s+(?-i:[A-Z0-9]))",
+    r"(?![\"'”’)\]]*\s+(?-i:[A-Z0-9]))",
     re.I,
 )
 # A decimal point or a dotted initial ("J. R. Smith") is never a boundary.
@@ -173,7 +191,7 @@ _ADJ_STOP = frozenset(
 def _sentences(text: str) -> list[str]:
     """Split into sentences, protecting periods that do not end one."""
     masked = text
-    for pattern in (_ABBREV_RE, _ABBREV_MEDIAL_RE, _DECIMAL_RE, _INITIAL_RE):
+    for pattern in (_ABBREV_RE, _ABBREV_NUMERIC_RE, _ABBREV_MEDIAL_RE, _DECIMAL_RE, _INITIAL_RE):
         masked = pattern.sub(lambda m: m.group(0).replace(".", _PROTECTED), masked)
 
     parts = (p.replace(_PROTECTED, ".").strip() for p in _SENTENCE_SPLIT.split(masked))
@@ -277,8 +295,15 @@ def _adjective_stacks(text: str, min_run: int = 3) -> int:
 
 
 def _segment(text: str, target_sentences: int = 4) -> list[str]:
-    """Split into scoring segments — paragraphs, or runs of sentences."""
-    paras = [p.strip() for p in re.split(r"\n{2,}", text) if p.strip()]
+    """Split into scoring segments — paragraphs, or runs of sentences.
+
+    Word-less paragraphs — scene dividers like '* * *', a lone em dash, a
+    markdown rule — are dropped, not segmented. Classified, each one became a
+    phantom 'clinical' segment sandwiched between real bands, so a one-note
+    piece with ordinary section breaks manufactured enough fake register
+    transitions to pass the motion gate.
+    """
+    paras = [p.strip() for p in re.split(r"\n{2,}", text) if _words(p)]
     segments: list[str] = []
     for para in paras:
         sents = _sentences(para)
@@ -508,16 +533,19 @@ def score_text(text: str, spec: StyleSpec | None = None) -> StyleReport:
     low = text.lower()
     tic_count = 0
     violations: list[str] = []
+
+    def _tic_pattern(tic: str) -> re.Pattern[str]:
+        # Phrasal tics need the same edge guards as single words: a bare
+        # substring match found 'king hell' inside "walking hell" and 'the
+        # whole thing' inside "the whole thingamajig", flipping passing prose
+        # to FAIL on tics it never used.
+        return re.compile(rf"(?<!\w){re.escape(tic)}(?!\w)")
+
     for tic in spec.tic_words:
-        pattern = re.compile(rf"\b{re.escape(tic)}\b" if " " not in tic else re.escape(tic))
-        hits = len(pattern.findall(low))
-        tic_count += hits
+        tic_count += len(_tic_pattern(tic).findall(low))
     for sentence in sents:
         s_low = sentence.lower()
-        in_sentence = [
-            tic for tic in spec.tic_words
-            if re.search(rf"\b{re.escape(tic)}\b" if " " not in tic else re.escape(tic), s_low)
-        ]
+        in_sentence = [tic for tic in spec.tic_words if _tic_pattern(tic).search(s_low)]
         if len(in_sentence) > int(spec.tics["max_per_sentence"]):
             violations.append(f"{len(in_sentence)} signature words in one sentence: {in_sentence}")
 

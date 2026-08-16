@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import logging
+import threading
 import uuid
 from typing import Any
 
@@ -14,6 +15,7 @@ from pydantic import BaseModel, Field
 
 from gonzo.client import (
     CredentialsError,
+    EmptyCompletionError,
     GonzoClient,
     RefusalError,
     StreamReset,
@@ -34,18 +36,26 @@ app = FastAPI(title="Gonzo Style Engine", version="0.1.0")
 # In-process session store. Fine for a local single-user tool; a deployed
 # instance would want something with eviction and a shared backend.
 _SESSIONS: dict[str, ChatSession] = {}
+# One lock per session: ChatSession mutates history and turn state with no
+# synchronization, and FastAPI runs sync endpoints in a threadpool — a
+# double-submit was interleaving two streams through one session, corrupting
+# history order and cross-attributing directives. Held for a whole turn.
+_SESSION_LOCKS: dict[str, threading.Lock] = {}
+_STORE_LOCK = threading.Lock()
 
 
 def _client() -> GonzoClient:
     return GonzoClient()
 
 
-def _session(session_id: str | None) -> tuple[str, ChatSession]:
-    if session_id and session_id in _SESSIONS:
-        return session_id, _SESSIONS[session_id]
-    new_id = session_id or uuid.uuid4().hex
-    _SESSIONS[new_id] = ChatSession(client=_client(), spec=load_spec())
-    return new_id, _SESSIONS[new_id]
+def _session(session_id: str | None) -> tuple[str, ChatSession, threading.Lock]:
+    with _STORE_LOCK:
+        if session_id and session_id in _SESSIONS:
+            return session_id, _SESSIONS[session_id], _SESSION_LOCKS[session_id]
+        new_id = session_id or uuid.uuid4().hex
+        _SESSIONS[new_id] = ChatSession(client=_client(), spec=load_spec())
+        _SESSION_LOCKS[new_id] = threading.Lock()
+        return new_id, _SESSIONS[new_id], _SESSION_LOCKS[new_id]
 
 
 # --- request models --------------------------------------------------------
@@ -101,38 +111,53 @@ def _sse(event: str, data: Any) -> str:
 @app.post("/api/chat")
 def chat(req: ChatRequest) -> StreamingResponse:
     """Stream a reply as Server-Sent Events."""
-    session_id, session = _session(req.session_id)
-    if req.wire is not None:
-        session.wire = req.wire
+    session_id, session, lock = _session(req.session_id)
 
     def generate():
         yield _sse("session", {"session_id": session_id})
+        if not lock.acquire(blocking=False):
+            # A turn is already streaming on this session. Refusing beats
+            # queueing: the second submit was almost certainly an accident,
+            # and silently serializing it would append a surprise reply.
+            yield _sse("error", {
+                "message": "a reply is already streaming for this session; wait for it to finish",
+                "kind": "busy",
+            })
+            return
         try:
-            for chunk in session.stream(req.message):
-                if isinstance(chunk, StreamReset):
-                    yield _sse("reset", {})
-                elif isinstance(chunk, WireSearch):
-                    yield _sse("wire", {"query": chunk.query})
-                elif isinstance(chunk, WireSources):
-                    pass  # folded into "done" below via session.last_sources
-                else:
-                    yield _sse("delta", {"text": chunk})
-        except RefusalError as exc:
-            yield _sse("error", {"message": str(exc), "kind": "refusal"})
-            return
-        except CredentialsError as exc:
-            yield _sse("error", {"message": str(exc), "kind": "credentials"})
-            return
-        except Exception as exc:  # surface failures to the UI, don't hang it
-            log.exception("chat stream failed")
-            yield _sse("error", {"message": str(exc), "kind": "error"})
-            return
+            try:
+                if req.wire is not None:
+                    session.wire = req.wire
+                for chunk in session.stream(req.message):
+                    if isinstance(chunk, StreamReset):
+                        yield _sse("reset", {})
+                    elif isinstance(chunk, WireSearch):
+                        yield _sse("wire", {"query": chunk.query})
+                    elif isinstance(chunk, WireSources):
+                        pass  # folded into "done" below via session.last_sources
+                    else:
+                        yield _sse("delta", {"text": chunk})
+            except RefusalError as exc:
+                yield _sse("error", {"message": str(exc), "kind": "refusal"})
+                return
+            except CredentialsError as exc:
+                yield _sse("error", {"message": str(exc), "kind": "credentials"})
+                return
+            except EmptyCompletionError as exc:
+                yield _sse("error", {"message": str(exc), "kind": "empty"})
+                return
+            except Exception as exc:  # surface failures to the UI, don't hang it
+                log.exception("chat stream failed")
+                yield _sse("error", {"message": str(exc), "kind": "error"})
+                return
 
-        directive = session.last_directive
-        yield _sse("done", {
-            "directive": directive.to_dict() if directive else None,
-            "sources": [s.to_dict() for s in session.last_sources],
-        })
+            directive = session.last_directive
+            yield _sse("done", {
+                "directive": directive.to_dict() if directive else None,
+                "sources": [s.to_dict() for s in session.last_sources],
+            })
+        finally:
+            lock.release()
 
     return StreamingResponse(
         generate(),
@@ -150,6 +175,10 @@ def compose(req: ComposeRequest) -> dict[str, Any]:
         raise HTTPException(status_code=503, detail=str(exc)) from exc
     except RefusalError as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
+    except EmptyCompletionError as exc:
+        # The model produced no prose (thinking-only or truncated). An
+        # upstream hiccup, not a client error — and not an anonymous 500.
+        raise HTTPException(status_code=502, detail=str(exc)) from exc
     return {
         "text": draft.text,
         "revision": draft.revision,
@@ -189,7 +218,9 @@ def score(req: ScoreRequest) -> dict[str, Any]:
 
 @app.delete("/api/session/{session_id}")
 def clear_session(session_id: str) -> dict[str, str]:
-    _SESSIONS.pop(session_id, None)
+    with _STORE_LOCK:
+        _SESSIONS.pop(session_id, None)
+        _SESSION_LOCKS.pop(session_id, None)
     return {"status": "cleared"}
 
 
