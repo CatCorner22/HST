@@ -45,6 +45,20 @@ def target_manic_text() -> str:
 
 
 @pytest.fixture(scope="session")
+def target_domestic_text() -> str:
+    """Third positive control: a domestic subject, no politics anywhere.
+
+    Every other fixture orbits public affairs, which quietly lets the scorer
+    and spec require politics for the vibe. The voice's claim is topic
+    independence — a diner buyout must clear the same thresholds a hearing
+    does, hitting all four registers with zero signature tics. If this
+    fixture ever fails while the political targets pass, the style system
+    has narrowed into a politics costume.
+    """
+    return _load("target_domestic")
+
+
+@pytest.fixture(scope="session")
 def no_elegiac_text() -> str:
     """Well-made long-form prose that never drops into the elegiac band.
 

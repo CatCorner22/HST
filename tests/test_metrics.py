@@ -183,6 +183,40 @@ class TestSecondTarget:
         assert not report.tic_violations
 
 
+class TestDomesticTarget:
+    """The topic-independence positive control.
+
+    A diner buyout — no senator, no hearing, no election anywhere in it —
+    must clear every gate the political fixtures clear. If this fixture
+    fails while they pass, the style system has quietly narrowed into a
+    politics costume, which is exactly the failure the spec's "The Subject
+    Is Never the Limit" section exists to prevent.
+    """
+
+    def test_passes(self, target_domestic_text):
+        report = score_text(target_domestic_text)
+        assert report.passed, f"failures: {report.failures}"
+        assert report.score >= 80
+
+    def test_hits_all_four_registers_without_politics(self, target_domestic_text):
+        report = score_text(target_domestic_text)
+        assert {"savage", "clinical", "manic", "elegiac"} <= set(report.bands), (
+            f"expected all four bands on a domestic subject, got {report.bands}"
+        )
+        assert report.has_elegiac
+
+    def test_needs_no_signature_tics(self, target_domestic_text):
+        """The voice without a single borrowed word: zero tics and it still
+        reads — and scores — as the style. Tics are a budget, not a fuel."""
+        report = score_text(target_domestic_text)
+        assert report.tic_count == 0
+
+    def test_outscores_negative_controls(self, flat_text, pastiche_text, target_domestic_text):
+        score = score_text(target_domestic_text).score
+        assert score > score_text(flat_text).score + 25
+        assert score > score_text(pastiche_text).score + 25
+
+
 class TestSceneCraft:
     """Scene-craft metrics: measured and reported, never gated."""
 

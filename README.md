@@ -98,11 +98,13 @@ PASS  score 100.0/100   (412 words)
 ## How it works
 
 **The style spec** (`gonzo/style/style_spec.md`) is the core artifact: stance
-(including the autopsy-of-a-promise frame), the Rhythm Law, the Specificity
-Anchor, four register bands, scene and dialogue, the paranoid hypothetical,
-the small moves (interjection, self-address, second-person pull, present-tense
-lurch, wisdom line), the anti-pastiche budget, and the prohibitions. It becomes
-the cached system prompt.
+(including the autopsy-of-a-promise frame), topic independence (the subject is
+never the limit — power scales down, love is a legitimate register, forced
+outrage is pastiche), the Rhythm Law, the Specificity Anchor, four register
+bands, scene and dialogue, the paranoid hypothetical, the small moves
+(interjection, self-address, second-person pull, present-tense lurch, wisdom
+line), the anti-pastiche budget, and the prohibitions. It becomes the cached
+system prompt.
 
 **The Variance Director** (`gonzo/style/variance.py`) replaces `temperature` —
 which Opus 5 rejects outright. Each request draws a seeded assignment: opening
@@ -116,14 +118,14 @@ adjective stacking, tic discipline, and register motion. An LLM rubric judge
 covers what counting can't: whether the savagery is aimed, whether the elegiac
 break lands, whether there's an argument under the comedy.
 
-**Prompt caching** keeps it cheap. The ~2,950-token system prefix is byte-stable
+**Prompt caching** keeps it cheap. The ~5,600-token system prefix is byte-stable
 and cached; only the variance directive and the conversation vary. Hence the hard
 rule that nothing dynamic may touch the system prompt — a test enforces it.
 
 ## Tests
 
 ```bash
-pytest              # 166 offline tests, no API key needed
+pytest              # 178 offline tests, no API key needed
 pytest -m live      # 9 adversarial guardrail tests, needs credentials
 ```
 
@@ -144,6 +146,7 @@ guard is mutation-tested — reverted in turn to confirm it actually fails:
 | **good prose, no elegiac break** | **83.0** | **fails — the thesis under test** |
 | written to spec (quiet face: clinical/elegiac) | 100.0 | passes |
 | written to spec (loud face: savage/manic, dialogue) | 100.0 | passes |
+| written to spec (domestic face: a diner buyout, zero politics, zero tics) | 100.0 | passes |
 
 ## What it will not do
 
