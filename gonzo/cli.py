@@ -37,13 +37,23 @@ def _read_input(source: str | None) -> str:
     return sys.stdin.read()
 
 
+def _scrub(text: str) -> str:
+    """Strip control characters from wire-sourced text before it reaches the
+    terminal. Titles and URLs come verbatim from third-party web pages; a
+    page whose <title> embeds ESC/CSI/OSC sequences must not be able to
+    rewrite the citation line it appears on, retitle the terminal, or poke
+    the emulator. (The web UI already treats this data as hostile — the CLI
+    gets the same discipline.)"""
+    return "".join(ch for ch in text if ch.isprintable())
+
+
 def _print_sources(sources, out=sys.stderr) -> None:
     if not sources:
         return
     print("\n  off the wire:", file=out)
     for i, s in enumerate(sources, 1):
-        title = f" — {s.title}" if s.title else ""
-        print(f"    [{i}] {s.url}{title}", file=out)
+        title = f" — {_scrub(s.title)}" if s.title else ""
+        print(f"    [{i}] {_scrub(s.url)}{title}", file=out)
 
 
 def cmd_chat(args: argparse.Namespace) -> int:
@@ -86,7 +96,10 @@ def cmd_chat(args: argparse.Namespace) -> int:
                     # cannot un-print, so mark the boundary plainly.
                     print("\n[the previous model declined; restarting]\n", flush=True)
                 elif isinstance(chunk, WireSearch):
-                    label = f": {chunk.query}" if chunk.query else ""
+                    # The query is model-generated, but it can embed verbatim
+                    # user or page text — scrub it like everything else that
+                    # crosses from the wire to the TTY.
+                    label = f": {_scrub(chunk.query)}" if chunk.query else ""
                     print(f"[checking the wire{label}]", file=sys.stderr, flush=True)
                 elif isinstance(chunk, WireSources):
                     pass  # printed after the reply, from session.last_sources

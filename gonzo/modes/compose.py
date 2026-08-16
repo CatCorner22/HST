@@ -79,10 +79,9 @@ class Composer:
         )
 
         completion = self._generate(prompt)
-        sources = list(completion.sources)
         text = completion.text
 
-        best = Draft(text, self._assess(text, assignment), 0, directive, list(sources))
+        best = Draft(text, self._assess(text, assignment), 0, directive, list(completion.sources))
         if not revise:
             return best
 
@@ -90,14 +89,17 @@ class Composer:
             if best.report.passed:
                 break
             revised, new_sources = self._revise(assignment, best, directive, prompt)
+            # Sources follow the winning lineage, not the attempt sequence:
+            # every revision rewrites `best`, so a candidate owes its facts to
+            # best's sources plus its own fresh citations — and nothing to a
+            # sibling revision that lost and whose text never fed anyone.
+            candidate_sources = list(best.sources)
             for source in new_sources:
-                if all(source.url != s.url for s in sources):
-                    sources.append(source)
-            # Each draft snapshots the accumulated sources at its own moment:
-            # if this candidate loses, its searches must not be attributed to
-            # the draft that actually ships.
+                if all(source.url != s.url for s in candidate_sources):
+                    candidate_sources.append(source)
             candidate = Draft(
-                revised, self._assess(revised, assignment), attempt, directive, list(sources)
+                revised, self._assess(revised, assignment), attempt, directive,
+                candidate_sources,
             )
             # Keep the better draft — a revision can overcorrect, and shipping
             # a worse piece because it came later would be silly.
