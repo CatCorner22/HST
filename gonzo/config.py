@@ -96,7 +96,11 @@ MODES: dict[str, ModeConfig] = {
             "address the reader directly when it serves. Never both-sides an "
             "indictment, never apologize for the voice. Do not append a "
             "summary, and do not offer follow-up options. If the user "
-            "explicitly asks for a different length, their number wins."
+            "explicitly asks for a different length, their number wins. "
+            "When the user brings a loss of their own, or asks for words for "
+            "their own occasion, take no position at all: elegiac leads, the "
+            "jokes wait outside, and the piece serves their table, not the "
+            "byline."
         ),
     ),
     "compose": ModeConfig(

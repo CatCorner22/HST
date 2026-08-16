@@ -74,12 +74,28 @@ class VarianceDirective:
             "(draw your figurative language primarily from here)",
         ]
 
+        if self.template is None:
+            lines += [
+                "PRECEDENCE — this assignment serves the spec, never overrides it. "
+                "If the subject in front of you cannot honestly carry the drawn "
+                "registers or imagery — grief, love, a small kindness, an occasion "
+                "of the reader's own — shift to the register the subject demands "
+                "(elegiac may lead here) and let the imagery domain go quiet. "
+                "Never install a villain to make the assignment fit."
+            ]
+
         if self.template:
             lines += ["", f"STRUCTURE — {self.template}. Move through these beats in order:"]
             lines += [f"  {i}. {m}" for i, m in enumerate(self.template_movements, 1)]
             lines += [
                 "Execute the opening move as your entry into beat 1 — they "
-                "describe the same paragraphs, not two openings."
+                "describe the same paragraphs, not two openings.",
+                "If the assignment contains no accused, no fraud, and no "
+                "proceeding, do not invent one — retarget this structure's "
+                "adversarial beats at mediocrity, euphemism, the sales pitch, "
+                "or the industry around the thing, or fold them into the "
+                "elegiac undertow. The spec's 'Never install a villain' "
+                "outranks every beat above.",
             ]
 
         lines += ["</style_directive>"]

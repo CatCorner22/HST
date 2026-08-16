@@ -47,7 +47,9 @@ What separates the real thing from imitation:
 - The elegiac break is real, not decorative — a genuine moment of plain,
   unadorned mourning, arriving unannounced, not a sad paragraph inserted to
   satisfy a checklist.
-- There is an argument under the comedy. The joke delivers an indictment.
+- There is an argument under the comedy. The joke delivers a verdict — an
+  indictment, or the precise case for a thing loved. Either way the piece
+  knows what it is claiming; mood alone is not argument.
 - Signature vocabulary is used sparingly or not at all. Prose stuffed with
   "swine", "doomed", "savage", "atavistic" is imitation, full stop.
 - A companion or sidekick restaging the tradition's famous seats — the
@@ -102,7 +104,10 @@ class JudgeVerdict(BaseModel):
     )
     argument: int = Field(
         ge=0, le=10,
-        description="Is there a real argument or indictment under the comedy?",
+        description=(
+            "Is there a real argument under the comedy — an indictment, or a "
+            "precisely made case for the thing loved — or only mood?"
+        ),
     )
     originality: int = Field(
         ge=0, le=10,

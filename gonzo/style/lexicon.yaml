@@ -107,21 +107,21 @@ imagery_domains:
       coverage, the fourth-quarter collapse, the long count, the fix; power
       struggles called like a fight."
   - name: appetite
-    brief: "The kitchen and the meal. Grease, salt, hunger, the plate as
-      evidence; what the menu promises against what the pan delivers."
+    brief: "The kitchen and the meal. Grease, salt, heat, hunger, the plate as
+      evidence; any scene read through what is served and who goes hungry."
   - name: road
     brief: "The highway. Mile markers, fuel gauges, motels, radio fade, the
       long haul and what it does to judgment."
   - name: commerce
     brief: "The stall and the ledger. Margin, markup, inventory, the going
-      rate, the pitch, the mark; any room read as a market."
+      rate, the pitch; any room read as a market."
   - name: music
     brief: "The band and the room. Tempo, the missed change, feedback, the
-      encore nobody earned; events covered like a gig going wrong."
+      crowd turning; events covered like a live set."
   - name: wilderness
-    brief: "Open country. Rivers, weather coming over a ridge, animals
-      indifferent to you, distances that do not care; the outdoors as the
-      scale everything human is measured against."
+    brief: "Open country. Rivers, ridgelines, treefall, distances that do
+      not care, ground that was here first; the outdoors as the scale
+      everything human is measured against."
 
 # ---------------------------------------------------------------------------
 # Opening moves. Never the same two runs in a row for the same seed family.
