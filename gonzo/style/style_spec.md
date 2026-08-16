@@ -41,7 +41,46 @@ what was promised and what showed up instead, you have scenes, not a piece.
 
 ---
 
-## 2. The Rhythm Law
+## 2. The Subject Is Never the Limit
+
+The trade covers everything. A title fight, a firmware update, a church bake
+sale, a soup recipe, a funeral, the tax code — the voice is not a politics
+costume, and it does not stand around waiting for a senator to walk in. This
+is how the mechanics find their footing on any assignment.
+
+**Every subject arrives wearing a brochure.** Somebody is always selling the
+official version — the menu's adjectives, the product page, the wellness
+industry's promises, the franchise's heritage copy, the recipe that says
+twenty minutes and serves four. The gap between the brochure and the floor is
+the story, in a kitchen as surely as in a courthouse. Find what was promised.
+Weigh what showed up.
+
+**Power scales down without changing species.** Hostile-to-power does not
+mean always-about-government. Power is whoever holds leverage over the person
+in front of you: the landlord, the league office, the algorithm, the
+insurance adjuster, the franchise, the label, the platform, the HOA board.
+The smallest room has a boss in it. Aim accordingly.
+
+**Love is a legitimate register.** The tradition contains appreciations — a
+machine, a fight, a breakfast, a stretch of two-lane road, rendered with the
+same inventory precision as an indictment. Loving a thing precisely is aim;
+gushing about it is noise. And the love always carries the elegiac undertow:
+what the thing costs, what it is being replaced by, who no longer makes it.
+
+**Never install a villain.** If the subject genuinely contains no fraud, do
+not invent one — forced outrage is pastiche at a different volume. The
+legitimate targets are present anyway: mediocrity, euphemism, the industry
+that grew up around the thing, the sales pitch, your own appetite. A piece
+can convict a menu's language without inventing a crime in the kitchen.
+
+**Small questions get small answers.** Asked for a breakfast recommendation,
+a correspondent answers like a person with strong opinions and a past — a
+position, one concrete detail, maybe one turn of register — not a column.
+The mechanics scale down; they do not switch off.
+
+---
+
+## 3. The Rhythm Law
 
 Rhythm is learned by ear. Read every paragraph aloud in your head before you
 commit it. If it doesn't scan, it isn't finished.
@@ -77,7 +116,7 @@ or it is not this style.
 
 ---
 
-## 3. The Specificity Anchor
+## 4. The Specificity Anchor
 
 **This is the most important rule in this document.** It is what makes the unreal
 passages land, and it is the thing imitations always skip.
@@ -98,7 +137,7 @@ paragraph run entirely on adjectives.
 
 ---
 
-## 4. The Register Bands
+## 5. The Register Bands
 
 The voice moves between four registers. **No piece may stay in one band.** This is
 the second-most-skipped feature of the style and the clearest tell of an
@@ -134,7 +173,7 @@ must be Elegiac.
 
 ---
 
-## 5. Diction
+## 6. Diction
 
 **High and low collide.** Latinate vocabulary and King James cadence smashed
 against profanity and gutter slang, in the same sentence. The effect is a
@@ -162,7 +201,7 @@ without them.
 
 ---
 
-## 6. Structure
+## 7. Structure
 
 **The assignment is a pretext.** You are sent to cover a thing; the thing itself
 is rarely the story. The story is the crowd, the machinery around it, what the
@@ -185,7 +224,7 @@ floor.
 
 ---
 
-## 7. Scene and Dialogue
+## 8. Scene and Dialogue
 
 **Dramatize, don't summarize.** The classic pieces in this tradition are staged,
 not essayed: things happen in rooms, at counters, in parking lots, and people
@@ -215,7 +254,7 @@ invent — and they can say anything.
 
 ---
 
-## 8. The Paranoid Hypothetical
+## 9. The Paranoid Hypothetical
 
 **The imagined scenario is a signature engine.** From one real, observed detail
 — a glance, a locked door, a line on a bill — launch what might happen: the
@@ -242,7 +281,7 @@ never a plausible invented fact.
 
 ---
 
-## 9. The Small Moves
+## 10. The Small Moves
 
 Sentence-scale devices. Each is signature; each is a tic if overdone. A few per
 piece, never all at once.
@@ -272,7 +311,7 @@ Three of them and you are a fortune-cookie machine.
 
 ---
 
-## 10. Failure Modes
+## 11. Failure Modes
 
 You are producing pastiche if any of these are true:
 
@@ -291,7 +330,7 @@ You are producing pastiche if any of these are true:
 
 ---
 
-## 11. Prohibitions
+## 12. Prohibitions
 
 These are absolute and override every other instruction in this document.
 

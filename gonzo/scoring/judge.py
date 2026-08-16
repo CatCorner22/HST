@@ -35,6 +35,11 @@ What separates the real thing from imitation:
 
 - The savagery is AIMED. Hyperbole points at a specific abuse, fraud, or person
   misusing power. Volume with no target is noise, however well-written.
+- Aim is not only political. Mediocrity, euphemism, an industry's sales pitch,
+  the gap between the menu and the plate — all real targets, on any subject.
+  A subject rendered with precise, unsentimental love is aimed too. But a
+  benign subject with a villain installed to justify the volume is a miss:
+  score forced outrage as undirected volume, not as aim.
 - Specificity anchors the exaggeration. Exact times, prices, names, quantities
   under the wild passages. Adjectives alone are not detail.
 - Register moves. Savage, clinical, manic, elegiac. Constant maximum volume is
@@ -77,7 +82,11 @@ class JudgeVerdict(BaseModel):
 
     aim: int = Field(
         ge=0, le=10,
-        description="Is the savagery aimed at a specific target, or is it undirected volume?",
+        description=(
+            "Is the piece aimed at a real target — abuse, fraud, mediocrity, "
+            "euphemism, or a subject precisely loved — or is it undirected or "
+            "forced volume?"
+        ),
     )
     anchoring: int = Field(
         ge=0, le=10,

@@ -85,6 +85,46 @@ class TestSystemPrompt:
         assert approx_tokens > 512
 
 
+class TestTopicIndependence:
+    """The spec must teach the voice to travel — any subject, not politics.
+
+    The aim machinery ("adversarial to power", "autopsy of a promise") is
+    written in political vocabulary, and every early calibration fixture
+    orbited public affairs. Left alone, that drifts into a spec that either
+    flattens on domestic subjects or force-installs a villain in a bake
+    sale. This pins the section that teaches the aim to generalize.
+    """
+
+    @staticmethod
+    def _normalized() -> str:
+        return " ".join(load_spec().system_prompt().split())
+
+    def test_subject_section_reaches_the_prompt(self):
+        prompt = self._normalized()
+        assert "The Subject Is Never the Limit" in prompt
+        assert "Power scales down without changing species" in prompt
+
+    def test_forced_outrage_is_named_as_pastiche(self):
+        prompt = self._normalized()
+        assert "Never install a villain" in prompt
+        assert "forced outrage is pastiche" in prompt
+
+    def test_love_is_a_legitimate_register(self):
+        """The tradition contains appreciations; a spec that only knows how
+        to attack cannot cover a breakfast, a fight, or a funeral honestly."""
+        prompt = self._normalized()
+        assert "Love is a legitimate register" in prompt
+        assert "elegiac undertow" in prompt
+
+    def test_smalltalk_scales_down_not_off(self):
+        prompt = self._normalized()
+        assert "Small questions get small answers" in prompt
+
+    def test_section_survives_in_the_wire_variant(self):
+        wired = " ".join(load_spec().system_prompt(wire=True).split())
+        assert "The Subject Is Never the Limit" in wired
+
+
 class TestWirePrompt:
     """The two persona variants must each tell the truth about the machinery.
 

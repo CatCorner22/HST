@@ -121,9 +121,10 @@ mandates it (a filed piece without the break reads as pastiche).
 
 ## Prompt caching, and the constraint it imposes
 
-The system prefix — persona, spec, guardrails — is ~2,950 tokens and identical on
-every request. It carries a `cache_control` breakpoint, so from the second turn
-on it bills at roughly a tenth of input price.
+The system prefix — persona, spec, guardrails — is ~5,600 tokens (as of the
+topic-independence pass) and identical on every request. It carries a
+`cache_control` breakpoint, so from the second turn on it bills at roughly a
+tenth of input price.
 
 That imposes a hard architectural rule: **nothing dynamic may touch the system
 prompt.** One timestamp, session id, or seed in that prefix silently destroys

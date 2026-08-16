@@ -270,6 +270,29 @@ class TestWireFlagTriState:
         assert build_parser().parse_args(argv).wire is expected
 
 
+class TestJudgeRubric:
+    """The judge's aim dimension must not require politics.
+
+    Without this, a well-made piece about a diner or a dishwasher gets marked
+    down for lacking a political target — or worse, the engine learns that
+    installing a villain is what scores. Forced outrage on a benign subject
+    must read as a miss, not a hit.
+    """
+
+    def test_rubric_generalizes_aim_beyond_politics(self):
+        from gonzo.scoring.judge import JUDGE_SYSTEM
+
+        normalized = " ".join(JUDGE_SYSTEM.split())
+        assert "Aim is not only political" in normalized
+        assert "forced outrage as undirected volume" in normalized
+
+    def test_aim_field_admits_loved_subjects(self):
+        from gonzo.scoring.judge import JudgeVerdict
+
+        description = JudgeVerdict.model_fields["aim"].description or ""
+        assert "precisely loved" in description
+
+
 class TestTransferFactCheck:
     def test_flags_missing_numbers(self):
         source = "The budget rose to $4.3 million across 2019, affecting 87 staff."

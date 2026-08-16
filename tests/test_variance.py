@@ -130,3 +130,11 @@ class TestDirectiveCoherence:
         domains = {director.draw(seed=i).imagery_domain for i in range(400)}
         assert {"dateline", "mid_dialogue", "aphorism_first"} <= moves
         assert {"combat", "sport"} <= domains
+        # The topic-independence domains: imagery wells for subjects that are
+        # kitchens, highways, markets, gigs, and open country — not hearings.
+        assert {"appetite", "road", "commerce", "music", "wilderness"} <= domains
+
+    def test_topic_general_templates_are_drawable(self):
+        director = VarianceDirector()
+        templates = {director.draw(seed=i, longform=True).template for i in range(400)}
+        assert {"field_test", "pilgrimage"} <= templates
