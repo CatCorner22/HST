@@ -26,14 +26,21 @@ from gonzo.style.spec import load_spec
 
 
 def _read_input(source: str | None) -> str:
-    """Read from a file path, or from stdin when given '-' or nothing."""
+    """Read from a file path, or from stdin when given '-' or nothing.
+
+    Usage and I/O failures exit 2, not 1 — exit 1 is the documented "the
+    prose failed the bar" verdict, and a missing file must not read as a
+    style judgment in scripts that branch on it.
+    """
     if source and source != "-":
         try:
             return Path(source).read_text(encoding="utf-8")
-        except OSError as exc:
-            sys.exit(f"error: {exc}")
+        except (OSError, UnicodeDecodeError) as exc:
+            print(f"error: {exc}", file=sys.stderr)
+            raise SystemExit(2) from exc
     if sys.stdin.isatty():
-        sys.exit("error: no input. Pass a file path, or pipe text on stdin.")
+        print("error: no input. Pass a file path, or pipe text on stdin.", file=sys.stderr)
+        raise SystemExit(2)
     return sys.stdin.read()
 
 
@@ -118,6 +125,9 @@ def cmd_write(args: argparse.Namespace) -> int:
         draft = composer.compose(args.assignment, seed=args.seed, revise=not args.no_revise)
     except RefusalError as exc:
         print(f"declined: {exc}", file=sys.stderr)
+        return 2
+    except EmptyCompletionError as exc:
+        print(f"no prose returned: {exc}", file=sys.stderr)
         return 2
 
     if args.json:

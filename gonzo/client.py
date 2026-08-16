@@ -514,6 +514,12 @@ class GonzoClient:
             )
 
         log.debug("stream usage: %s", usage)
+        if not _text_of_blocks(blocks):
+            # Mirror complete(): a thinking-only or truncated turn must raise,
+            # not end cleanly. A silent empty stream let ChatSession record an
+            # empty assistant turn, and the API rejects any later request whose
+            # history contains one — the session was bricked until reset.
+            raise EmptyCompletionError(getattr(final, "stop_reason", None))
         if tools:
             yield WireSources(sources=tuple(_sources_of_blocks(blocks)))
 

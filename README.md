@@ -53,7 +53,7 @@ gonzo score --no-judge piece.txt              # metrics only, no API call
 gonzo serve                                   # web UI at http://127.0.0.1:8000
 ```
 
-Every command takes `--seed N` for reproducible output.
+`chat`, `write`, and `transfer` take `--seed N` for reproducible output.
 
 ### The wire
 
@@ -125,7 +125,7 @@ rule that nothing dynamic may touch the system prompt — a test enforces it.
 ## Tests
 
 ```bash
-pytest              # 178 offline tests, no API key needed
+pytest              # 202 offline tests, no API key needed
 pytest -m live      # 9 adversarial guardrail tests, needs credentials
 ```
 
@@ -166,8 +166,8 @@ gonzo/
   style/     style_spec.md · lexicon.yaml · structures.yaml · variance.py
   scoring/   metrics.py (deterministic) · judge.py (rubric) · report.py
   modes/     chat · compose · transfer · critique
+  web/       browser UI, no build step (inside the package so wheels ship it)
   client.py  caching, streaming, refusal handling
   cli.py · server.py
-web/         browser UI, no build step
 docs/        DESIGN.md · SOURCES.md
 ```
