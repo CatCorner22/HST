@@ -97,19 +97,19 @@ templates:
     compatible_openings: [inventory, flat_verdict, dateline, direct_address]
     movements:
       - "Clinical: the claim in its own packaging language, the price paid, the instructions as written."
-      - "Begin exactly per instructions. Note the first deviation without alarm."
-      - "Escalating divergence between the instructions and events. Manic."
+      - "Perform step one exactly as written, on the clock, on yourself. Log the first deviation as data, not alarm."
+      - "The instructions and the events part company for good. Manic."
       - "One outside voice — a clerk, a hotline operator, a neighbor who owns one — in their own idiom."
-      - "Elegiac break: whatever this thing replaced, and the people who made that."
+      - "Elegiac break: what the thing actually costs, and who pays that — plainly, without adjectives."
       - "The verdict. Flat, one line, priced. Stop."
 
   - name: pilgrimage
     brief: "Go to the source — the shrine, the factory, the birthplace, the last one left — and meet what is actually there."
-    compatible_openings: [displacement, omen, dateline, direct_address]
+    compatible_openings: [displacement, flat_verdict, dateline, direct_address]
     movements:
       - "The legend, stated in its own reverent language. Deadpan. Clinical."
-      - "The approach: the road, the signage, the gift-shop gravity. What it costs to get close."
-      - "Arrival. Inventory the gap between the shrine and the site, item by item."
+      - "The approach: the road, the signage, the gift shops, accelerating as you close. What it costs to get near. Manic."
+      - "Arrival. Inventory the distance between the legend and what is actually here, item by item — in whichever direction it runs."
       - "A keeper, guide, or local talks. Their idiom carries what the plaque will not say. Let them."
-      - "Elegiac break: the true thing that is actually here, under the merchandising, plainly."
+      - "Elegiac break: the true thing that is actually here, plainly."
       - "Close on one physical detail worth the trip, or the exact price of the ticket. No verdict."

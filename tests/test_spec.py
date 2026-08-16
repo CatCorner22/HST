@@ -108,6 +108,9 @@ class TestTopicIndependence:
         prompt = self._normalized()
         assert "Never install a villain" in prompt
         assert "forced outrage is pastiche" in prompt
+        # The Failure Modes checklist must carry the same defect section 2
+        # names — the self-check and the judge's rubric may not disagree.
+        assert "The villain is installed" in prompt
 
     def test_love_is_a_legitimate_register(self):
         """The tradition contains appreciations; a spec that only knows how

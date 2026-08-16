@@ -271,7 +271,7 @@ class TestWireFlagTriState:
 
 
 class TestJudgeRubric:
-    """The judge's aim dimension must not require politics.
+    """The judge's aim and argument dimensions must not require politics.
 
     Without this, a well-made piece about a diner or a dishwasher gets marked
     down for lacking a political target — or worse, the engine learns that
@@ -291,6 +291,17 @@ class TestJudgeRubric:
 
         description = JudgeVerdict.model_fields["aim"].description or ""
         assert "precisely loved" in description
+
+    def test_argument_generalizes_beyond_indictment(self):
+        """The argument dimension carries the second-highest weight; if it
+        still equates argument with indictment, appreciation pieces are
+        structurally capped and the generalized aim oscillates against it."""
+        from gonzo.scoring.judge import JUDGE_SYSTEM, JudgeVerdict
+
+        normalized = " ".join(JUDGE_SYSTEM.split())
+        assert "the precise case for a thing loved" in normalized
+        description = JudgeVerdict.model_fields["argument"].description or ""
+        assert "case for the thing loved" in description
 
 
 class TestTransferFactCheck:
