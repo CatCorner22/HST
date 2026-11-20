@@ -425,6 +425,89 @@ def _count_specifics(text: str) -> int:
     return distinct + _count_proper_nouns(text)
 
 
+# --- prosody (report-only) ------------------------------------------------
+#
+# The two-stroke mechanics of spec sections 11 and 12, measured so a report
+# can see them. None of these is gated and none feeds the composite: the
+# voice can carry a piece without any one of them, and gating would let the
+# scorer demand a device -- pastiche by instruction. Every fixture's score is
+# pinned unchanged by tests/test_prosody.py.
+
+# A cliff-drop: a long accumulating sentence landing on a very short one.
+CLIFF_LONG = 35
+CLIFF_SHORT = 4
+# A still point: a short plain sentence followed, within a few sentences, by a
+# long one -- the inverse curve.
+STILL_SHORT = 6
+STILL_WINDOW = 3
+
+_SPACED_ELLIPSIS = re.compile(r"\.\s\.\s\.")
+_AND = re.compile(r"(?<!\w)and(?!\w)", re.I)
+# Closed list: a mid-sentence capital on one of these reads as an allegorical
+# character ("the Law", "the Enemy"), not a proper noun. "God" is excluded --
+# its capital is ordinary spelling, not a device.
+_ABSTRACTIONS = frozenset(
+    """law laws order rules truth justice evil war enemy power money fear freedom
+    journalism objective objectivity progress reason history sin greed decency
+    dream future faith honor establishment system authority security doom
+    judgment market""".split()
+)
+_VOWEL_GROUPS = re.compile(r"[aeiouy]+")
+
+
+def _syllables(word: str) -> int:
+    """Heuristic English syllable count: vowel groups, less a silent final e
+    and a silent -ed. Undercounts some words; it only has to tell one-syllable
+    words from longer ones."""
+    w = word.lower().strip("'’-")
+    if not w:
+        return 0
+    n = len(_VOWEL_GROUPS.findall(w))
+    if n > 1 and w.endswith("e") and not w.endswith(("le", "ee", "ye")):
+        n -= 1
+    if n > 1 and w.endswith("ed") and not w.endswith(("ted", "ded")):
+        n -= 1
+    return max(n, 1)
+
+
+def _cliff_drops(lengths: list[int]) -> int:
+    return sum(
+        1 for a, b in zip(lengths, lengths[1:]) if a >= CLIFF_LONG and 0 < b <= CLIFF_SHORT
+    )
+
+
+def _still_points(lengths: list[int]) -> int:
+    count = 0
+    for i, n in enumerate(lengths):
+        if 0 < n <= STILL_SHORT and any(
+            m >= CLIFF_LONG for m in lengths[i + 1 : i + 1 + STILL_WINDOW]
+        ):
+            count += 1
+    return count
+
+
+def _polysyndeton_runs(sentences: list[str]) -> int:
+    """Sentences carrying three or more coordinating 'and's."""
+    return sum(1 for s in sentences if len(_AND.findall(s)) >= 3)
+
+
+def _capitalized_abstractions(sentences: list[str]) -> int:
+    total = 0
+    for sentence in sentences:
+        words = _words(sentence.lstrip("\"'([{ \t"))
+        for w in words[1:]:
+            if w[:1].isupper() and not w.isupper() and w.lower() in _ABSTRACTIONS:
+                total += 1
+    return total
+
+
+def _elegiac_monosyllable_share(segments: list[str], bands: list[str]) -> float:
+    words = [w for seg, band in zip(segments, bands) if band == "elegiac" for w in _words(seg)]
+    if not words:
+        return 0.0
+    return sum(1 for w in words if _syllables(w) == 1) / len(words)
+
+
 # --- report ----------------------------------------------------------------
 
 
@@ -463,6 +546,13 @@ class StyleReport:
     is_longform: bool
     failures: list[str] = field(default_factory=list)
     score: float = 0.0
+    # Prosody: report-only, never gated, never in the composite.
+    cliff_drops: int = 0
+    still_points: int = 0
+    spaced_ellipses: int = 0
+    polysyndeton_runs: int = 0
+    capitalized_abstractions: int = 0
+    elegiac_monosyllable_share: float = 0.0
 
     @property
     def passed(self) -> bool:
@@ -495,6 +585,11 @@ class StyleReport:
             f"  registers    {' -> '.join(self.bands) if self.bands else '(none)'}",
             f"               {self.register_transitions} transitions, "
             f"elegiac {'present' if self.has_elegiac else 'ABSENT'}",
+            f"  prosody      cliff-drops {self.cliff_drops}   still points "
+            f"{self.still_points}   spaced rests {self.spaced_ellipses}   "
+            f"polysyndeton {self.polysyndeton_runs}   capitals "
+            f"{self.capitalized_abstractions}   elegiac monosyllables "
+            f"{self.elegiac_monosyllable_share:.0%}   (reported, not gated)",
         ]
         if self.failures:
             lines += ["", "  failures:"] + [f"    - {f}" for f in self.failures]
@@ -594,6 +689,12 @@ def score_text(text: str, spec: StyleSpec | None = None) -> StyleReport:
         register_transitions=transitions,
         has_elegiac="elegiac" in bands,
         is_longform=n_words >= LONGFORM_MIN_WORDS,
+        cliff_drops=_cliff_drops(lengths),
+        still_points=_still_points(lengths),
+        spaced_ellipses=len(_SPACED_ELLIPSIS.findall(text)),
+        polysyndeton_runs=_polysyndeton_runs(sents),
+        capitalized_abstractions=_capitalized_abstractions(sents),
+        elegiac_monosyllable_share=_elegiac_monosyllable_share(segments, bands),
     )
     _evaluate(report)
     return report

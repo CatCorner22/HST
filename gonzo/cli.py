@@ -1,4 +1,4 @@
-"""Command line: gonzo chat | write | transfer | score."""
+"""Command line: gonzo chat | morgue | write | transfer | score | serve."""
 
 from __future__ import annotations
 
@@ -20,6 +20,7 @@ from gonzo.config import WIRE_DEFAULT
 from gonzo.modes.chat import ChatSession
 from gonzo.modes.compose import Composer
 from gonzo.modes.critique import Critic
+from gonzo.modes.morgue import MorgueSession
 from gonzo.modes.transfer import Transferrer
 from gonzo.scoring.metrics import score_text
 from gonzo.style.spec import load_spec
@@ -96,25 +97,76 @@ def cmd_chat(args: argparse.Namespace) -> int:
             continue
 
         print()
+        _stream_reply(session, line)
+        print("\n")
+
+
+def _stream_reply(session, line: str) -> None:
+    """Stream one turn to the terminal, then list any wire sources.
+
+    Shared by chat and the Morgue: both sessions yield the same event kinds,
+    and both need the same scrubbing and reset handling.
+    """
+    try:
+        for chunk in session.stream(line):
+            if isinstance(chunk, StreamReset):
+                # A fallback superseded what we just printed. A terminal
+                # cannot un-print, so mark the boundary plainly.
+                print("\n[the previous model declined; restarting]\n", flush=True)
+            elif isinstance(chunk, WireSearch):
+                # The query is model-generated, but it can embed verbatim
+                # user or page text — scrub it like everything else that
+                # crosses from the wire to the TTY.
+                label = f": {_scrub(chunk.query)}" if chunk.query else ""
+                print(f"[checking the wire{label}]", file=sys.stderr, flush=True)
+            elif isinstance(chunk, WireSources):
+                pass  # printed after the reply, from session.last_sources
+            else:
+                print(chunk, end="", flush=True)
+    except (RefusalError, EmptyCompletionError) as exc:
+        print(f"\n[{exc}]", file=sys.stderr)
+    _print_sources(session.last_sources)
+
+
+def cmd_morgue(args: argparse.Namespace) -> int:
+    """The research desk: sourced answers about Thompson, in plain prose.
+
+    With a question, answers it once and exits. Without one, opens a REPL.
+    """
+    wire = WIRE_DEFAULT if args.wire is None else args.wire
+    session = MorgueSession(client=GonzoClient(), wire=wire)
+
+    if args.question:
+        _stream_reply(session, " ".join(args.question))
+        print()
+        return 0
+
+    status = "wire on — searches are billed" if wire else "wire off"
+    print(
+        f"The Morgue ({status}). Questions about Hunter S. Thompson, answered "
+        "from a checked quote bank and fact file. Ctrl-D or /quit to exit, "
+        "/reset to clear, /wire to toggle search.\n"
+    )
+    while True:
         try:
-            for chunk in session.stream(line):
-                if isinstance(chunk, StreamReset):
-                    # A fallback superseded what we just printed. A terminal
-                    # cannot un-print, so mark the boundary plainly.
-                    print("\n[the previous model declined; restarting]\n", flush=True)
-                elif isinstance(chunk, WireSearch):
-                    # The query is model-generated, but it can embed verbatim
-                    # user or page text — scrub it like everything else that
-                    # crosses from the wire to the TTY.
-                    label = f": {_scrub(chunk.query)}" if chunk.query else ""
-                    print(f"[checking the wire{label}]", file=sys.stderr, flush=True)
-                elif isinstance(chunk, WireSources):
-                    pass  # printed after the reply, from session.last_sources
-                else:
-                    print(chunk, end="", flush=True)
-        except (RefusalError, EmptyCompletionError) as exc:
-            print(f"\n[{exc}]", file=sys.stderr)
-        _print_sources(session.last_sources)
+            line = input("ask > ").strip()
+        except (EOFError, KeyboardInterrupt):
+            print()
+            return 0
+        if not line:
+            continue
+        if line in {"/quit", "/exit"}:
+            return 0
+        if line == "/reset":
+            session.reset()
+            print("(history cleared)\n")
+            continue
+        if line == "/wire":
+            session.wire = not session.wire
+            print(f"(wire {'on — searches are billed' if session.wire else 'off'})\n")
+            continue
+        print()
+        _stream_reply(session, line)
         print("\n")
 
 
@@ -148,7 +200,8 @@ def cmd_write(args: argparse.Namespace) -> int:
         print("\n" + "─" * 68, file=sys.stderr)
         print(
             f"seed {d.seed} · {d.opening_move} · {d.dominant_band}→{d.contrast_band} · "
-            f"{d.imagery_domain} · {d.template} · revision {draft.revision}",
+            f"{d.imagery_domain} · {d.template} · {' + '.join(d.devices) or 'no devices'} · "
+            f"revision {draft.revision}",
             file=sys.stderr,
         )
         print(draft.report.summary(), file=sys.stderr)
@@ -225,6 +278,17 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--seed", type=int, help="reproducible variance")
     wire_flags(p)
     p.set_defaults(func=cmd_chat)
+
+    p = sub.add_parser(
+        "morgue",
+        help="research desk: sourced answers about Thompson, in plain prose",
+    )
+    p.add_argument(
+        "question", nargs="*",
+        help="ask once and exit; omit to open an interactive session",
+    )
+    wire_flags(p)
+    p.set_defaults(func=cmd_morgue)
 
     p = sub.add_parser("write", help="compose a long-form piece")
     p.add_argument("assignment", help="what to cover")

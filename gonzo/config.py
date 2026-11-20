@@ -122,6 +122,10 @@ MODES: dict[str, ModeConfig] = {
         ),
     ),
     "judge": ModeConfig(effort="low", max_tokens=4_000),
+    # The Morgue, the research desk. Its length guidance lives in its own
+    # cached system prompt (gonzo/research/morgue.py), so no per-turn note is
+    # sent: a research question is the only thing that varies.
+    "morgue": ModeConfig(effort="medium", max_tokens=8_000, target_words=(100, 400)),
 }
 
 # Scorer thresholds. A piece must clear these to pass. Tuned so that flat prose

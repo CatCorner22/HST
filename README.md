@@ -14,6 +14,11 @@ The engine is built on the right side of that line, and it is also the better
 engineering choice: a rule system can be inspected, tuned, and tested. See
 [`docs/DESIGN.md`](docs/DESIGN.md) and [`docs/SOURCES.md`](docs/SOURCES.md).
 
+The engine has two desks. **The Correspondent** writes in the tradition, as
+itself. **The Morgue** — a newspaper's clipping archive — answers questions
+*about* Thompson in plain scholarly prose, from a hand-checked quote bank and
+fact file, and labels every quotation verified, secondary, or disputed.
+
 ## The thesis
 
 Most attempts at this voice fail identically — drugs, profanity, "swine", maximum
@@ -45,6 +50,8 @@ An `ant auth login` profile works instead of a key — the SDK finds it on disk.
 ```bash
 gonzo chat                                    # conversation, streaming
 gonzo chat --wire                             # same, with live web search
+gonzo morgue "where does 'too weird to live' come from?"  # the research desk
+gonzo morgue                                  # research desk, interactive
 gonzo write "the county zoning board meeting" # long-form, with revision loop
 gonzo write --wire "the September jobs report"  # researched long-form
 gonzo transfer draft.txt                      # restyle, preserving every fact
@@ -54,6 +61,7 @@ gonzo serve                                   # web UI at http://127.0.0.1:8000
 ```
 
 `chat`, `write`, and `transfer` take `--seed N` for reproducible output.
+`chat`, `morgue`, and `write` take `--wire`.
 
 ### The wire
 
@@ -69,7 +77,7 @@ which is why it is opt-in. The two personas never blend: the narrator's
 claims about its machinery are true in both configurations, and a test
 enforces it.
 
-## The four modes
+## The five modes
 
 **Chat** — conversation in voice. Draws a fresh stylistic assignment each turn so
 replies don't converge on one register.
@@ -84,15 +92,23 @@ survive intact; a numeric diff flags anything that went missing.
 
 **Score** — the scorer on its own, against this engine's output or your own.
 
+**Morgue** — the research desk. Sourced answers about Thompson's life, work,
+and craft. It quotes him only from `gonzo/research/quotes.yaml` (25 entries,
+each under 15 words, each with the URLs where the wording was checked) and
+takes dates from `gonzo/research/facts.yaml`, which records conflicts between
+sources instead of hiding them. Where the record is silent, it says so.
+
 ```
 PASS  score 100.0/100   (412 words)
 
   rhythm       cv 0.80 (>= 0.55)   mean 20.6w   fragments 10%   longest 69w
-  specificity  6.3/100w (>= 3.0)
+  specificity  5.3/100w (>= 3.0)
   adjectives   0.24 stacks/100w (>= 0.15)
+  scene        dialogue 0% of words   questions 0%, interjections 0% of sentences   2nd person 0.49/100w
   tics         0 used, 0.0/500w (budget 3.0)
   registers    clinical -> elegiac -> clinical
                2 transitions, elegiac present
+  prosody      cliff-drops 0   still points 2   spaced rests 0   polysyndeton 2   capitals 0   elegiac monosyllables 78%   (reported, not gated)
 ```
 
 ## How it works
@@ -103,29 +119,33 @@ never the limit — power scales down, love is a legitimate register, forced
 outrage is pastiche), the Rhythm Law, the Specificity Anchor, four register
 bands, scene and dialogue, the paranoid hypothetical, the small moves
 (interjection, self-address, second-person pull, present-tense lurch, wisdom
-line), the anti-pastiche budget, and the prohibitions. It becomes the cached
-system prompt.
+line), the two-stroke engine (the cliff-drop, the still point, the elegiac
+cadence), eight budgeted sentence devices, the anti-pastiche budget, and the
+prohibitions. It becomes the cached system prompt.
 
 **The Variance Director** (`gonzo/style/variance.py`) replaces `temperature` —
 which Opus 5 rejects outright. Each request draws a seeded assignment: opening
 move, dominant register, mandated contrast register, imagery domain, structural
-template. Reproducible by seed, inspectable after the fact, and aimed at the axes
+template, a focus pair of sentence devices, and — in chat — a conversational
+stance. Reproducible by seed, inspectable after the fact, and aimed at the axes
 that actually make two pieces feel different.
 
 **The scorer** (`gonzo/scoring/`) is what makes this an engine rather than a
 prompt. Deterministic metrics measure rhythm variance, specificity density,
-adjective stacking, tic discipline, and register motion. An LLM rubric judge
-covers what counting can't: whether the savagery is aimed, whether the elegiac
-break lands, whether there's an argument under the comedy.
+adjective stacking, tic discipline, and register motion, and report (without
+gating) the prosody of the two-stroke engine. An LLM rubric judge covers what
+counting can't: whether the savagery is aimed, whether the elegiac break lands,
+whether the acceleration drops unannounced, whether there's an argument under
+the comedy.
 
-**Prompt caching** keeps it cheap. The ~5,600-token system prefix is byte-stable
-and cached; only the variance directive and the conversation vary. Hence the hard
+**Prompt caching** keeps it cheap. The ~6,900-token system prefix (the Morgue's
+is ~5,500) is byte-stable and cached; only the variance directive and the conversation vary. Hence the hard
 rule that nothing dynamic may touch the system prompt — a test enforces it.
 
 ## Tests
 
 ```bash
-pytest              # 202 offline tests, no API key needed
+pytest              # 273 offline tests, no API key needed
 pytest -m live      # 9 adversarial guardrail tests, needs credentials
 ```
 
@@ -150,22 +170,27 @@ guard is mutation-tested — reverted in turn to confirm it actually fails:
 
 ## What it will not do
 
-Claim to be Hunter S. Thompson. Produce text presented as a quotation from him.
+Claim to be Hunter S. Thompson — neither desk will, and both say so when asked.
 Reproduce his published prose. Write under his byline. Fabricate biography about
 him or anyone else. Offer machinery it does not have: without the wire it says
 its file has an end date and stops there; with the wire it cites what it pulls.
 
-It **will** discuss him freely — craft, influence, what the tradition owes him.
-Analysis is not impersonation, and guardrails broad enough to refuse the subject
-would be their own bug. That permission is tested too.
+The Correspondent never quotes him. The Morgue quotes him only from its bank of
+short, sourced quotations, labels each one's verification status, and never
+reconstructs a quotation from memory.
+
+Both desks **will** discuss him freely — craft, influence, what the tradition
+owes him. Analysis is not impersonation, and guardrails broad enough to refuse
+the subject would be their own bug. That permission is tested too.
 
 ## Layout
 
 ```
 gonzo/
   style/     style_spec.md · lexicon.yaml · structures.yaml · variance.py
+  research/  morgue.py · quotes.yaml (quote bank) · facts.yaml (fact file)
   scoring/   metrics.py (deterministic) · judge.py (rubric) · report.py
-  modes/     chat · compose · transfer · critique
+  modes/     chat · compose · transfer · critique · morgue
   web/       browser UI, no build step (inside the package so wheels ship it)
   client.py  caching, streaming, refusal handling
   cli.py · server.py

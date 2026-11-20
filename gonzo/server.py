@@ -26,7 +26,9 @@ from gonzo.config import WEB_DIR, WIRE_DEFAULT, WIRE_MAX_SEARCHES
 from gonzo.modes.chat import ChatSession
 from gonzo.modes.compose import Composer
 from gonzo.modes.critique import Critic
+from gonzo.modes.morgue import MorgueSession
 from gonzo.modes.transfer import Transferrer
+from gonzo.research.morgue import load_quote_bank
 from gonzo.style.spec import load_spec
 
 log = logging.getLogger(__name__)
@@ -56,6 +58,22 @@ def _session(session_id: str | None) -> tuple[str, ChatSession, threading.Lock]:
         _SESSIONS[new_id] = ChatSession(client=_client(), spec=load_spec())
         _SESSION_LOCKS[new_id] = threading.Lock()
         return new_id, _SESSIONS[new_id], _SESSION_LOCKS[new_id]
+
+
+# Research-desk sessions live in their own store. An id from one store never
+# resolves in the other, so a chat id pasted into the Morgue starts a fresh
+# research session instead of replaying a correspondent's history into it.
+_MORGUE_SESSIONS: dict[str, MorgueSession] = {}
+
+
+def _morgue_session(session_id: str | None) -> tuple[str, MorgueSession, threading.Lock]:
+    with _STORE_LOCK:
+        if session_id and session_id in _MORGUE_SESSIONS:
+            return session_id, _MORGUE_SESSIONS[session_id], _SESSION_LOCKS[session_id]
+        new_id = uuid.uuid4().hex
+        _MORGUE_SESSIONS[new_id] = MorgueSession(client=_client())
+        _SESSION_LOCKS[new_id] = threading.Lock()
+        return new_id, _MORGUE_SESSIONS[new_id], _SESSION_LOCKS[new_id]
 
 
 # --- request models --------------------------------------------------------
@@ -100,6 +118,10 @@ def health() -> dict[str, Any]:
         "bands": spec.band_names,
         "templates": [t["name"] for t in spec.templates],
         "sessions": len(_SESSIONS),
+        "morgue": {
+            "sessions": len(_MORGUE_SESSIONS),
+            "quote_bank": len(load_quote_bank()),
+        },
         "wire": {"default": WIRE_DEFAULT, "max_searches": WIRE_MAX_SEARCHES},
     }
 
@@ -112,6 +134,34 @@ def _sse(event: str, data: Any) -> str:
 def chat(req: ChatRequest) -> StreamingResponse:
     """Stream a reply as Server-Sent Events."""
     session_id, session, lock = _session(req.session_id)
+
+    def done() -> dict[str, Any]:
+        directive = session.last_directive
+        return {
+            "directive": directive.to_dict() if directive else None,
+            "sources": [s.to_dict() for s in session.last_sources],
+        }
+
+    return _turn_response(session_id, session, lock, req.message, req.wire, done)
+
+
+@app.post("/api/morgue")
+def morgue(req: ChatRequest) -> StreamingResponse:
+    """The research desk, streamed as Server-Sent Events.
+
+    Same event protocol as /api/chat, so the UI reuses one parser. The done
+    event carries sources only: the Morgue draws no stylistic directive.
+    """
+    session_id, session, lock = _morgue_session(req.session_id)
+
+    def done() -> dict[str, Any]:
+        return {"directive": None, "sources": [s.to_dict() for s in session.last_sources]}
+
+    return _turn_response(session_id, session, lock, req.message, req.wire, done)
+
+
+def _turn_response(session_id, session, lock, message, wire, done) -> StreamingResponse:
+    """One streamed turn on a chat-like session (ChatSession or MorgueSession)."""
 
     def generate():
         yield _sse("session", {"session_id": session_id})
@@ -126,9 +176,9 @@ def chat(req: ChatRequest) -> StreamingResponse:
             return
         try:
             try:
-                if req.wire is not None:
-                    session.wire = req.wire
-                for chunk in session.stream(req.message):
+                if wire is not None:
+                    session.wire = wire
+                for chunk in session.stream(message):
                     if isinstance(chunk, StreamReset):
                         yield _sse("reset", {})
                     elif isinstance(chunk, WireSearch):
@@ -151,11 +201,7 @@ def chat(req: ChatRequest) -> StreamingResponse:
                 yield _sse("error", {"message": str(exc), "kind": "error"})
                 return
 
-            directive = session.last_directive
-            yield _sse("done", {
-                "directive": directive.to_dict() if directive else None,
-                "sources": [s.to_dict() for s in session.last_sources],
-            })
+            yield _sse("done", done())
         finally:
             lock.release()
 
@@ -220,6 +266,7 @@ def score(req: ScoreRequest) -> dict[str, Any]:
 def clear_session(session_id: str) -> dict[str, str]:
     with _STORE_LOCK:
         _SESSIONS.pop(session_id, None)
+        _MORGUE_SESSIONS.pop(session_id, None)
         _SESSION_LOCKS.pop(session_id, None)
     return {"status": "cleared"}
 

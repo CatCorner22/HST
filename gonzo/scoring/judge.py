@@ -70,6 +70,13 @@ What separates the real thing from imitation:
   juxtaposition, a deadpan escalation, one perfectly ridiculous concrete
   detail — and the laugh lands on the target. Humorless savagery is an
   editorial, not this style.
+- The prose runs on TWO STROKES. Acceleration builds -- the parody, the
+  inventory, the transcript -- until the official language gives way, then
+  the floor drops with no transition: a short plain sentence, small old
+  words, real mourning. A drop that announces itself ("but seriously") or a
+  crescendo that never lands is a miss. In a short conversational reply,
+  judge whether the pressure has somewhere to fall; do not demand the full
+  cycle.
 - Endings land. The real thing stops on an image, a line of speech, or a flat
   declarative that drops through the floor. A close that summarizes or
   moralizes is a serious defect: name it in your weakest finding.
@@ -134,6 +141,14 @@ class JudgeVerdict(BaseModel):
             "target? 0 if you cannot point to a genuinely comic moment."
         ),
     )
+    two_stroke: int = Field(
+        ge=0, le=10,
+        description=(
+            "Does acceleration build and then drop, unannounced, into a short "
+            "plain sentence and real mourning? Score an announced drop or a "
+            "crescendo that never lands low. Judge proportionally in short replies."
+        ),
+    )
     reads_as_pastiche: bool = Field(
         description="True if this reads as imitation rather than as writing."
     )
@@ -146,6 +161,7 @@ class JudgeVerdict(BaseModel):
     @field_validator(
         "aim", "anchoring", "register_control", "elegiac_quality",
         "argument", "originality", "scene_craft", "velocity", "comedy",
+        "two_stroke",
         mode="before",
     )
     @classmethod
@@ -165,17 +181,23 @@ class JudgeVerdict(BaseModel):
     @property
     def score(self) -> float:
         """0-100 composite. Aim and argument weighted highest — they are the
-        difference between the style and a costume."""
+        difference between the style and a costume.
+
+        two_stroke took its 0.05 from the two dimensions it overlaps: velocity
+        (the acceleration half, 0.08 -> 0.05) and elegiac_quality (the drop
+        half, 0.10 -> 0.08). The weights still sum to 1.0, so a perfect piece
+        still scores 100; tests/test_prosody.py pins both facts."""
         weighted = (
             0.18 * self.aim
             + 0.14 * self.anchoring
             + 0.12 * self.register_control
-            + 0.10 * self.elegiac_quality
+            + 0.08 * self.elegiac_quality
             + 0.16 * self.argument
             + 0.05 * self.originality
             + 0.10 * self.scene_craft
-            + 0.08 * self.velocity
+            + 0.05 * self.velocity
             + 0.07 * self.comedy
+            + 0.05 * self.two_stroke
         )
         penalty = 0.7 if self.reads_as_pastiche else 1.0
         return round(weighted * 10 * penalty, 1)
@@ -194,6 +216,7 @@ class JudgeVerdict(BaseModel):
             f"  scene craft       {self.scene_craft}/10",
             f"  velocity          {self.velocity}/10",
             f"  comedy            {self.comedy}/10",
+            f"  two-stroke        {self.two_stroke}/10",
             "",
             f"  strongest: {self.strongest}",
             f"  weakest:   {self.weakest}",

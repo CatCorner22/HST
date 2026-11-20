@@ -9,7 +9,7 @@ guards this.
 from __future__ import annotations
 
 import functools
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Any
 
 import yaml
@@ -28,6 +28,11 @@ class StyleSpec:
     imagery_domains: list[dict[str, str]]
     opening_moves: list[dict[str, str]]
     templates: list[dict[str, Any]]
+    # Sentence devices (spec section 12) and chat stances. Defaulted so a
+    # hand-built StyleSpec without them still works: the director then simply
+    # draws no device focus and no stance.
+    devices: list[dict[str, Any]] = field(default_factory=list)
+    stances: list[dict[str, str]] = field(default_factory=list)
 
     @property
     def band_names(self) -> list[str]:
@@ -77,4 +82,6 @@ def load_spec() -> StyleSpec:
         imagery_domains=lexicon["imagery_domains"],
         opening_moves=lexicon["opening_moves"],
         templates=structures["templates"],
+        devices=lexicon.get("devices", []),
+        stances=lexicon.get("stances", []),
     )

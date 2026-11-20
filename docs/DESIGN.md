@@ -398,3 +398,82 @@ gonzo score <that output>                        # the engine judging itself
 
 Confirm `usage.cache_read_input_tokens > 0` from turn two onward — that is the
 proof the cached prefix is live rather than silently re-billed.
+
+## The prosody pass and the Morgue
+
+A third review, run against an ingested research report on Thompson's prose
+craft (see `SOURCES.md`), asked two questions: what does the spec still not
+know about how the sentences *move*, and how should the engine answer people
+who want to learn about the man himself rather than read the tradition?
+
+### What the style system gained
+
+**Two spec sections.** *The Two-Stroke Engine* names the movement the
+believability thesis gestured at: acceleration until the official language
+collapses, then an unannounced drop into short plain sentences in small old
+words. Three shapes are named — the cliff-drop (a long sentence landing on two
+to four words), the still point (a plain sentence of six words or fewer before
+the long elegiac climb), and the elegiac cadence (one-syllable words, two
+stresses side by side at the close). *The Sentence Devices* names eight tools
+and budgets them, because the spec's own anti-pastiche rule applies to devices
+as much as to vocabulary: a piece that fires all eight is a demonstration.
+
+**Two new director axes.** Each request draws a focus pair of devices; chat
+turns also draw one of four conversational stances adapted from the spoken
+registers in the report. The fifth register the report describes — the
+writer trapped inside his own myth — was left out on purpose: it depends on
+fame and a public persona, and this narrator has neither.
+
+Both axes draw *after* every existing axis. Drawing them first would have
+shifted every later draw and silently changed what every existing seed
+reproduces; a snapshot of 21 pre-change draws now pins that it did not. A
+restyle never draws the two devices that add content (the exact-count catalog
+and the statutory splice), for the same reason transfer never draws a
+structural template.
+
+**The scorer can see the prosody, and is forbidden to grade it.** Cliff-drops,
+still points, spaced rests, polysyndeton, capitalized abstractions, and the
+monosyllable share inside elegiac passages are reported and never gated. A
+gate would let the scorer demand a device. A test blows every detector up to
+999 and confirms that no score and no failure moves, and the six calibration
+fixtures land on exactly the scores this document publishes.
+
+**The judge got one dimension,** two-stroke dynamics, weighted 0.05, taken
+from the two dimensions it overlaps (velocity 0.08 → 0.05, elegiac quality
+0.10 → 0.08). The weights still sum to 1.0.
+
+### The Morgue
+
+The Correspondent's guardrails forbid quotation at any length, which is right
+for a narrator and wrong for a research desk: a student asking what Thompson
+said about objective journalism deserves his words, accurately. The Morgue is
+a second persona with its own cached prompt and one changed rule — it may
+quote him, but only from a shipped bank of short quotations, each checked by
+hand against named sources and labeled `verified`, `secondary`, or `disputed`.
+Everything else is paraphrase, marked as paraphrase.
+
+The check that built the bank is the argument for having one. Several of the
+most famous lines attributed to Thompson did not check out: one could not be
+found in the source this repository's own `SOURCES.md` cited for it, one has
+no first printing anyone could produce, and one sits in two different works
+depending on whom you ask. A model quoting from memory would have repeated
+all three with total confidence. The bank keeps them as labeled teaching
+entries instead.
+
+The identity rules are the Correspondent's, restated for the desk: it is not
+him, it writes under no byline, it invents no biography. The Correspondent's
+guardrail text is pinned by hash, so this pass provably did not loosen it.
+
+### Verification
+
+273 offline tests pass (202 before this pass). Thirteen mutations, one per
+new guard, were applied and reverted in turn; all thirteen were caught. The
+first run caught twelve: the wire section's quote limit could be deleted
+without failing its test, because the same phrase also appears in a
+guardrail. The test now inspects the wire section itself. A built wheel,
+installed into a clean virtualenv, loads the quote bank, the fact file, and
+both new style axes.
+
+Still not verified: anything requiring the API. As before, no prose was
+generated in the build environment. `pytest -m live` and a few real Morgue
+questions — including one about a disputed line — are the next check.

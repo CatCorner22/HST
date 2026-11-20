@@ -1,0 +1,285 @@
+# The Morgue's quote bank.
+#
+# A newspaper's morgue is its clipping archive. This file is the only source of
+# words the Morgue may present as Hunter S. Thompson's own. The Correspondent
+# (the style engine) never quotes him at all; the Morgue quotes him only from
+# here, word for word, with the attribution recorded below.
+#
+# Rules for every entry (tests/test_morgue.py enforces them):
+#   - `text` runs under 15 words. Short quotation for study and commentary,
+#     never a passage. Excerpts mark omissions with "...".
+#   - `sources` lists at least one https URL where the wording was checked.
+#   - `status` is one of:
+#       verified   the wording appears in the publisher's or original outlet's
+#                  copy, a reputable archive, or two independent reputable
+#                  secondary sources
+#       secondary  two independent copies agree, but neither meets the bar
+#                  above, or the only copy is a single secondary source; the
+#                  Morgue quotes it with "as reprinted in" and names the source
+#       disputed   widely circulated, but the wording, the origin, or the
+#                  attribution does not check out; the Morgue names the dispute
+#                  and never presents the line as settled
+#   - `note` is required for secondary and disputed entries.
+#
+# Checked 20 November 2026 against the sources listed. A quote that failed the
+# check was dropped, not softened.
+
+quotes:
+  - id: way-of-life
+    text: "beware of looking for goals: look for a way of life."
+    work: "Letter to Hume Logan"
+    date: "April 22, 1958"
+    medium: letter
+    collected_in: "Letters of Note (2013), ed. Shaun Usher"
+    status: verified
+    sources:
+      - https://www.openculture.com/2015/02/hunter-s-thompson-life-coach-tips-for-finding-meaning-in-life.html
+      - https://www.themarginalian.org/2013/11/04/hunter-s-thomspon-letters-of-note-advice/
+
+  - id: within-that-way
+    text: "make a living WITHIN that way of life"
+    work: "Letter to Hume Logan"
+    date: "April 22, 1958"
+    medium: letter
+    collected_in: "Letters of Note (2013), ed. Shaun Usher"
+    status: verified
+    sources:
+      - https://www.lifehacker.com.au/?p=654622
+      - https://www.openculture.com/2015/02/hunter-s-thompson-life-coach-tips-for-finding-meaning-in-life.html
+    note: "The capitals on WITHIN are his."
+
+  - id: high-water-mark
+    text: "that place where the wave finally broke and rolled back."
+    work: "Fear and Loathing in Las Vegas, Part I, Chapter 8 (the wave speech)"
+    date: "1971 (Rolling Stone, November); book 1972"
+    medium: book
+    status: verified
+    sources:
+      - https://ialjs.org/wp-content/uploads/2012/06/019-036_RightKindAlexander.pdf
+      - https://www.litcharts.com/lit/fear-and-loathing-in-las-vegas/part-one-chapter-8-genius-round-the-world-stands-hand-in-hand-and-one-shock-of-recognition-runs-the-whole-circle-round-art-linkletter
+    note: "Closes a 45-word sentence; the phrase after the em-dash runs 10 words."
+
+  - id: crest-of-the-wave
+    text: "riding the crest of a high and beautiful wave"
+    work: "Fear and Loathing in Las Vegas, Part I, Chapter 8 (the wave speech)"
+    date: "1971 (Rolling Stone, November); book 1972"
+    medium: book
+    status: verified
+    sources:
+      - https://ialjs.org/wp-content/uploads/2012/06/019-036_RightKindAlexander.pdf
+      - https://www.litcharts.com/lit/fear-and-loathing-in-las-vegas/part-one-chapter-8-genius-round-the-world-stands-hand-in-hand-and-one-shock-of-recognition-runs-the-whole-circle-round-art-linkletter
+
+  - id: old-and-evil
+    text: "sense of inevitable victory over the forces of Old and Evil"
+    work: "Fear and Loathing in Las Vegas, Part I, Chapter 8 (the wave speech)"
+    date: "1971 (Rolling Stone, November); book 1972"
+    medium: book
+    status: secondary
+    sources:
+      - https://www.litcharts.com/lit/fear-and-loathing-in-las-vegas/part-one-chapter-8-genius-round-the-world-stands-hand-in-hand-and-one-shock-of-recognition-runs-the-whole-circle-round-art-linkletter
+    note: "Checked in one study-guide copy only. The capitals on Old and Evil are his."
+
+  - id: barstow
+    text: "somewhere around Barstow on the edge of the desert"
+    work: "Fear and Loathing in Las Vegas, opening sentence"
+    date: "1971 (Rolling Stone, November); book 1972"
+    medium: book
+    status: verified
+    sources:
+      - https://www.rollingstone.com/feature/fear-and-loathing-in-las-vegas-204655/
+
+  - id: buy-the-ticket
+    text: "Buy the ticket, take the ride."
+    work: "Fear and Loathing in Las Vegas"
+    date: "1971 (Rolling Stone, November); book 1972"
+    medium: book
+    status: verified
+    sources:
+      - https://www.reviewjournal.com/?p=2475216
+      - https://shortlist.com/news/25-pieces-of-wisdom-from-fear-loathing-in-las-vegas
+
+  - id: blind-spots
+    text: "It was the built-in blind spots of the Objective rules and dogma"
+    work: "He Was a Crook (obituary of Richard Nixon)"
+    date: "June 16, 1994 (Rolling Stone)"
+    medium: magazine
+    status: verified
+    sources:
+      - https://dallasnews.com/opinion/commentary/2018/04/10/a-maddening-riddle-hunter-thompson-believed-journalists-needed-to-get-subjective
+      - https://www.leoweekly.com/?p=64513
+
+  - id: get-subjective
+    text: "You had to get Subjective to see Nixon clearly"
+    work: "He Was a Crook (obituary of Richard Nixon)"
+    date: "June 16, 1994 (Rolling Stone)"
+    medium: magazine
+    status: secondary
+    sources:
+      - https://www.leoweekly.com/?p=64513
+      - https://fromtheheartofeurope.eu/hunter-s-thompsons-obituary-of-richard-nixon/
+    note: "One newspaper quotation and one blog reprint agree; the original was not opened in this check."
+
+  - id: scum-and-rotten
+    text: "words like scum and rotten are wrong for Objective Journalism"
+    work: "He Was a Crook (obituary of Richard Nixon)"
+    date: "June 16, 1994 (Rolling Stone)"
+    medium: magazine
+    status: verified
+    sources:
+      - https://ajrarchive.org/Article.asp?id=3855
+      - https://dallasnews.com/opinion/commentary/2018/04/10/a-maddening-riddle-hunter-thompson-believed-journalists-needed-to-get-subjective
+    note: "Reprints disagree on the clause that follows ('they miss the point' or 'they will miss the point'), so the bank stops before it."
+
+  - id: bolero
+    text: "build like Bolero to a faster and wilder climax"
+    work: "Introduction to Screwjack"
+    date: "2000 (Simon & Schuster edition)"
+    medium: book
+    status: verified
+    sources:
+      - https://www.simonandschuster.ca/books/Screwjack/Hunter-S-Thompson/9781668022931
+    note: "The ingested prose-craft report misprints this as 'faster and wider climax'. The publisher's copy reads 'wilder'."
+
+  - id: freedom-dies
+    text: "Freedom is something that dies unless it's used."
+    work: "Interview with John Glassie, Salon"
+    date: "February 3, 2003"
+    medium: interview
+    status: verified
+    sources:
+      - https://www.salon.com/2003/02/03/thompson_18/
+
+  - id: fear-is-ignorance
+    text: "Fear is just another word for ignorance."
+    work: "Interview with John Glassie, Salon"
+    date: "February 3, 2003"
+    medium: interview
+    status: verified
+    sources:
+      - https://www.salon.com/2003/02/03/thompson_18/
+
+  - id: collateral-damage
+    text: "I never had any — what's that? — collateral damage."
+    work: "Interview with John Glassie, Salon"
+    date: "February 3, 2003"
+    medium: interview
+    status: verified
+    sources:
+      - https://www.salon.com/2003/02/03/thompson_18/
+    note: "Said of never having gotten a source arrested by his reporting."
+
+  - id: at-war-now
+    text: "We are At War now -- with somebody"
+    work: "Fear and Loathing in America (ESPN.com Page 2 column)"
+    date: "September 12, 2001"
+    medium: column
+    status: verified
+    sources:
+      - https://www.espn.com/espn/page2/story?id=1250751
+
+  - id: pompous-contradiction
+    text: "The phrase itself is a pompous contradiction in terms."
+    work: "Fear and Loathing: On the Campaign Trail '72"
+    date: "1973"
+    medium: book
+    status: verified
+    sources:
+      - https://www.chestnuthilllocal.com/stories/more-election-season-reading-hunter-thompsons-bible-of-political-reporting,14707
+      - https://notevenpast.org/?p=1163
+    note: "'The phrase' is objective journalism."
+
+  - id: no-byline-of-mine
+    text: "Don't bother to look for it here — not under any byline of mine"
+    work: "Fear and Loathing: On the Campaign Trail '72"
+    date: "1973"
+    medium: book
+    status: verified
+    sources:
+      - https://www.themarginalian.org/2013/07/18/hunter-s-thompson-journalism-politics/
+      - https://www.chestnuthilllocal.com/stories/more-election-season-reading-hunter-thompsons-bible-of-political-reporting,14707
+    note: "'It' is objective journalism."
+
+  - id: no-more-chances
+    text: "they realize there are no more chances."
+    work: "Interview with Studs Terkel, WFMT"
+    date: "1967"
+    medium: interview
+    status: secondary
+    sources:
+      - https://blankonblank.org/?p=9291
+    note: "Transcript published by Blank on Blank; said of Hell's Angels members at about age 30. The WFMT archive page was not opened in this check."
+
+  - id: chaos-multiplying
+    text: "a superhuman task in a time when chaos is multiplying."
+    work: "What Lured Hemingway to Ketchum? (The National Observer)"
+    date: "May 25, 1964"
+    medium: newspaper
+    collected_in: "The Great Shark Hunt (1979)"
+    status: secondary
+    sources:
+      - https://martinmckenziemurray.substack.com/p/football-season-is-over
+      - https://kevinswoodshed.blogspot.com/2013_06_30_archive.html
+    note: "Two independent reprints agree; neither is a publisher or archive copy."
+
+  - id: book-of-revelation
+    text: "I have stolen more quotes and thoughts ... from the Book of Revelation"
+    work: "Generation of Swine, author's note"
+    date: "1988"
+    medium: book
+    status: secondary
+    sources:
+      - https://www.goodreads.com/work/quotes/2082790
+    note: "Wording as quoted in William McKeen's biography Outlaw Journalist (2008). The location in Generation of Swine comes from the ingested prose-craft report and was not checked against the book."
+
+  - id: too-weird-to-live
+    text: "Too weird to live, and too rare to die."
+    work: "Disputed location: Fear and Loathing in Las Vegas, or Rolling Stone, December 15, 1977"
+    date: "1971 or 1977"
+    medium: disputed
+    status: disputed
+    sources:
+      - https://tvtropes.org/pmwiki/pmwiki.php/Literature/FearandLoathinginLasVegas
+      - https://gonzotoday.com/2015/08/21/the-zeta-affair-did-oscar-co-write-fear-loathing-3
+      - https://entertainment.time.com/2011/12/16/top-10-literary-sidekicks/slide/dr-gonzo-fear-and-loathing-in-las-vegas/
+    note: "The wording is well attested; the location is not. Some sources place it in Fear and Loathing in Las Vegas, describing Dr. Gonzo. Gonzo Today cites Rolling Stone, December 15, 1977, and Time places it in his writing after Oscar Zeta Acosta disappeared in 1974. He might have used it in both places. The ingested report's version, 'He was too weird...', matches neither."
+
+  - id: weird-turn-pro
+    text: "When the going gets weird, the weird turn pro."
+    work: "Disputed origin"
+    date: "unknown"
+    medium: disputed
+    status: disputed
+    sources:
+      - https://blog.thephoenix.com/Boston/News/93311-Swine-fever-An-evening-with-Hunter-S-Thompson/%3Frel=inf
+    note: "Credited to him everywhere, including by the Boston Phoenix in 1989, but this check found no first printing. Treat the line as his catchphrase, not as a cited quotation."
+
+  - id: advocate-drugs
+    text: "I hate to advocate drugs, alcohol, violence, or insanity to anyone"
+    work: "Disputed origin"
+    date: "unknown"
+    medium: disputed
+    status: disputed
+    sources:
+      - https://en.wikipedia.org/wiki/Hunter_S._Thompson
+    note: "Wikipedia says he 'often remarked' it; this check found no dated primary source."
+
+  - id: type-out-their-work
+    text: "If you type out somebody's work, you learn a lot about it."
+    work: "Disputed attribution"
+    date: "unknown"
+    medium: disputed
+    status: disputed
+    sources:
+      - https://www.openculture.com/2017/06/hunter-s-thompson-typed-out-the-great-gatsby-farewell-to-arms.html
+      - https://brianjohnspencer.blogspot.com/2014/06/hunter-s-thompson-typing-out-work-of.html
+    note: "Often attributed to him. The Open Culture article on his typing exercise does not contain the line; one blog places it in a passage about his friend Porter Bibb. The typing exercise itself is documented; this wording is not."
+
+  - id: fiction-bridge
+    text: "Fiction is a bridge to the truth that journalism can't reach."
+    work: "Disputed: a letter to Angus Cameron, per one magazine"
+    date: "unknown"
+    medium: disputed
+    status: disputed
+    sources:
+      - https://faroutmagazine.co.uk/hunter-s-thompson-the-great-american-novel/
+    note: "Only one secondary source places it in a letter to Knopf editor Angus Cameron; not confirmed against The Proud Highway."
