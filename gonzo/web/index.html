@@ -14,6 +14,7 @@
 
 <nav class="tabs" role="tablist">
   <button class="tab active" data-panel="chat" role="tab">Chat</button>
+  <button class="tab" data-panel="morgue" role="tab">Morgue</button>
   <button class="tab" data-panel="compose" role="tab">Compose</button>
   <button class="tab" data-panel="transfer" role="tab">Transfer</button>
   <button class="tab" data-panel="score" role="tab">Score</button>
@@ -32,6 +33,24 @@
           <input type="checkbox" id="chat-wire"> wire (web search, billed)
         </label>
         <span id="chat-directive" class="directive"></span>
+      </div>
+    </form>
+  </section>
+
+  <!-- Morgue: the research desk -->
+  <section id="morgue" class="panel">
+    <p class="note">The Morgue answers questions about Hunter S. Thompson in plain prose, from a
+      hand-checked quote bank and fact file. It quotes him only from that bank, labels every
+      quote verified, secondary, or disputed, and says so when the record is silent.</p>
+    <div id="morgue-transcript" class="transcript" aria-live="polite"></div>
+    <form id="morgue-form" class="composer">
+      <textarea id="morgue-input" rows="2" placeholder="When did he start typing out Gatsby? Where does 'too weird to live' come from?"></textarea>
+      <div class="row">
+        <button type="submit" class="primary">Ask</button>
+        <button type="button" id="morgue-reset">Reset</button>
+        <label class="inline" title="Attaches live web search. Each search is billed by the API.">
+          <input type="checkbox" id="morgue-wire"> wire (web search, billed)
+        </label>
       </div>
     </form>
   </section>

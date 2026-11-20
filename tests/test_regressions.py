@@ -231,6 +231,7 @@ class TestJudgeClamping:
         v = JudgeVerdict(
             aim=11, anchoring=-3, register_control=7, elegiac_quality=5,
             argument=8, originality=7, scene_craft=12, velocity=6, comedy=-1,
+            two_stroke=14,
             reads_as_pastiche=False,
             strongest="s", weakest="w", fixes=[],
         )
@@ -238,6 +239,7 @@ class TestJudgeClamping:
         assert v.anchoring == 0
         assert v.scene_craft == 10
         assert v.comedy == 0
+        assert v.two_stroke == 10
 
 
 class TestSeedRoundTrip:

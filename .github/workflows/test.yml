@@ -105,6 +105,14 @@ jobs:
           spec = load_spec()
           assert spec.templates and spec.bands, "style data not packaged"
           assert len(spec.system_prompt()) > 2000, "system prompt did not assemble"
+
+          # The Morgue's quote bank and fact file are package data too.
+          from gonzo.research.morgue import (
+              RESEARCH_DIR, load_fact_file, load_quote_bank, morgue_system_prompt,
+          )
+          assert RESEARCH_DIR.is_dir(), f"missing from the wheel: {RESEARCH_DIR}"
+          assert load_quote_bank() and load_fact_file().facts, "research data not packaged"
+          assert len(morgue_system_prompt()) > 2000, "morgue prompt did not assemble"
           print("package data intact")
           PY
 

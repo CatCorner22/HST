@@ -49,6 +49,13 @@ class VarianceDirective:
     # invented scenes and companions, which a fact-preserving restyle is
     # forbidden to add.
     longform: bool = False
+    # Sentence-device focus pair (spec section 12), and the conversational
+    # stance for chat turns. Drawn AFTER every other axis, so adding them
+    # left every pre-existing field of every seed exactly as it was.
+    devices: tuple[str, ...] = ()
+    device_briefs: tuple[str, ...] = ()
+    stance: str | None = None
+    stance_brief: str = ""
 
     def render(self) -> str:
         """Render as an instruction block for the message stream."""
@@ -80,13 +87,26 @@ class VarianceDirective:
             "(draw your figurative language primarily from here)",
         ]
 
+        if self.devices:
+            focus = "; ".join(
+                f"{name}: {brief}" for name, brief in zip(self.devices, self.device_briefs)
+            )
+            lines.append(
+                f"DEVICE FOCUS — {focus} (lean on these where the prose earns them; "
+                "leave the other sentence devices quiet)"
+            )
+
+        if self.stance:
+            lines.append(f"CONVERSATIONAL STANCE — {self.stance}: {self.stance_brief}")
+
         if self.template is None:
             lines += [
                 "PRECEDENCE — this assignment serves the spec, never overrides it. "
                 "If the subject in front of you cannot honestly carry the drawn "
                 "registers or imagery — grief, love, a small kindness, an occasion "
                 "of the reader's own — shift to the register the subject demands "
-                "(elegiac may lead here) and let the imagery domain go quiet. "
+                "(elegiac may lead here) and let the imagery domain go quiet, "
+                "along with the device focus and the stance. "
                 "Never install a villain to make the assignment fit."
             ]
 
@@ -186,6 +206,23 @@ class VarianceDirector:
                 if pool:
                     move = rng.choice(pool)
 
+        # New axes draw last, from the same generator. Drawing them earlier
+        # would have shifted every later draw and silently changed what every
+        # existing seed reproduces; tests/test_variance.py pins the old fields
+        # against a snapshot taken before these axes existed.
+        #
+        # A restyle (long-form contract, no structure) may add no fact, so it
+        # never draws a device that introduces content of its own.
+        restyle = longform and not structure
+        device_pool = [
+            d for d in self.spec.devices if not (restyle and d.get("adds_facts"))
+        ]
+        focus = rng.sample(device_pool, min(2, len(device_pool))) if device_pool else []
+
+        # Stances belong to conversation only. A filed piece or a restyle
+        # takes its posture from the template and the source.
+        stance = rng.choice(self.spec.stances) if (not longform and self.spec.stances) else None
+
         return VarianceDirective(
             seed=seed,
             opening_move=move["name"],
@@ -197,4 +234,8 @@ class VarianceDirector:
             template=template_name,
             template_movements=movements,
             longform=longform,
+            devices=tuple(d["name"] for d in focus),
+            device_briefs=tuple(d["brief"] for d in focus),
+            stance=stance["name"] if stance else None,
+            stance_brief=stance["brief"] if stance else "",
         )

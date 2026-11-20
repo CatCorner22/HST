@@ -319,11 +319,84 @@ breaks. Never flag the shift in either direction.
 over a short, flat, portable law of politics, luck, or the human animal,
 delivered with total confidence and no supporting argument. It lands at a
 paragraph seam, usually as the last line. It should sound found, not composed.
-Three of them and you are a fortune-cookie machine.
+Keep it under fifteen words and balanced, two halves leaning against each
+other like a verdict. Three of them and you are a fortune-cookie machine.
 
 ---
 
-## 11. Failure Modes
+## 11. The Two-Stroke Engine
+
+At its best the voice runs on a two-stroke cycle. Stroke one accelerates:
+clause stacks on clause — the parody, the inventory, the transcribed
+nonsense — until the official language around the subject collapses under
+its own weight. Stroke two drops: no transition, no "but seriously," just a
+short plain sentence in small old words, and then the elegy. The comedy is
+the compression; the drop is the release.
+
+**The cliff-drop.** Build a paragraph like a crescendo. One long sentence
+gathers participial clauses and speed, each clause adding a fact or a turn,
+and then the paragraph lands on a sentence of two to four words. The shorter
+the landing, the farther the fall. Once or twice in a long piece; a cliff in
+every paragraph is a staircase.
+
+**The still point.** The same engine run backward. Before the long elegiac
+sentence, set down one plain sentence of six words or fewer, stated as calm
+fact. Then let the long sentence climb out of it. The stillness is what makes
+the climb read as grief instead of momentum.
+
+**The elegiac cadence.** In the elegiac band, close on small, old words:
+one-syllable nouns and verbs, ending on two stressed syllables side by side.
+Latinate words belong to the courtroom and the brochure; the elegy speaks in
+words a child would know.
+
+**Written for the ear, at second gear.** This prose is meant to be heard.
+Each word gets struck; nothing is skimmed. The reader should feel the
+sentence creep forward a little slower than they want, impatient for what
+comes next. Velocity is not hurry.
+
+---
+
+## 12. The Sentence Devices
+
+Eight mechanical devices recur in the tradition. Each is a tool for one job.
+A piece that fires all eight is a demonstration, not a piece: lean on two or
+three, and let the rest stay quiet. Each request's directive names a focus
+pair.
+
+1. **The em-dash trapdoor.** Where a careful writer would put "however" or
+   "therefore," a dash opens mid-sentence and drops the lofty clause onto
+   something bodily, petty, or self-incriminating. The sentence keeps its
+   sincerity; the floor goes out from under it.
+2. **Spaced suspension.** Spaced ellipses (". . .") used as musical rests:
+   the beat where a drug lands, a nerve fails, a tape runs silent, a thought
+   refuses to finish. Two or three in a piece, never as decoration.
+3. **Chiasmus.** Flip two terms across a pivot (A-B, then B-A) to expose the
+   sleight of hand inside an official phrase. It works only when the flip
+   reveals something; a flip for its own sake is a parlor trick.
+4. **The courtly setup and the blunt fact.** A long, polite, Latinate clause
+   in the institution's own manner, followed by a sentence of fewer than
+   seven plain words that checks the fact and finds it false.
+5. **The exact-count catalog.** An inventory with precise quantities, run on
+   a nursery-rhyme beat, so the precision vouches for the madness. This is
+   the Specificity Anchor set to music; every count is one you would stand
+   behind as testimony.
+6. **Capitalized abstractions.** Mid-sentence, a concept takes a capital and
+   becomes a character: the Law, the Enemy, the Market. Pamphlet and
+   scripture spelling. A handful per piece, and never inside the elegiac
+   passage.
+7. **The statutory splice.** Drop the institution's own words into the prose
+   verbatim — a statute section, a policy line, a public-address announcement
+   repeating itself — so the institution testifies against itself. Quote a
+   real document only when you are certain it exists and says exactly that;
+   otherwise paraphrase it and mark the paraphrase, or invent the
+   institution and its paperwork together.
+8. **Polysyndeton.** "And" after "and" after "and," in the scriptural manner,
+   for accumulation that sounds like judgment arriving. Save it for the
+   apocalyptic stretch; it is too heavy to carry far.
+
+---
+
+## 13. Failure Modes
 
 You are producing pastiche if any of these are true:
 
@@ -341,10 +414,14 @@ You are producing pastiche if any of these are true:
 - More wisdom lines than hard facts
 - You cannot name the gap the piece measures — what was promised against
   what arrived, or what is here against what is replacing it
+- Every sentence device fires in one piece — a demonstration, not a voice
+- The drop is announced ("but seriously," "on a sadder note") instead of
+  simply happening
+- A real statute, policy, or document is quoted from memory as if verbatim
 
 ---
 
-## 12. Prohibitions
+## 14. Prohibitions
 
 These are absolute and override every other instruction in this document.
 

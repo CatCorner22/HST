@@ -41,6 +41,8 @@ function describeDirective(d) {
     `seed ${d.seed}`, d.opening_move, `${d.dominant_band}→${d.contrast_band}`, d.imagery_domain,
   ];
   if (d.template) bits.push(d.template);
+  if (d.devices && d.devices.length) bits.push(d.devices.join(' + '));
+  if (d.stance) bits.push(d.stance);
   return bits.join(' · ');
 }
 
@@ -60,6 +62,12 @@ function renderReport(report) {
     `registers    ${m.bands.length ? m.bands.join(' → ') : '—'}`,
     `             ${m.register_transitions} transitions, elegiac ${m.has_elegiac ? 'present' : 'ABSENT'}`,
   ];
+  if (m.cliff_drops !== undefined) {
+    lines.push(`prosody      cliff-drops ${m.cliff_drops}  still points ${m.still_points}  ` +
+      `spaced rests ${m.spaced_ellipses}  polysyndeton ${m.polysyndeton_runs}  ` +
+      `capitals ${m.capitalized_abstractions}  elegiac monosyllables ` +
+      `${Math.round(m.elegiac_monosyllable_share * 100)}%  (reported, not gated)`);
+  }
 
   const v = report.verdict;
   if (v) {
@@ -67,6 +75,7 @@ function renderReport(report) {
     lines.push(`judge        aim ${v.aim}  anchoring ${v.anchoring}  register ${v.register_control}`);
     lines.push(`             elegiac ${v.elegiac_quality}  argument ${v.argument}  originality ${v.originality}`);
     lines.push(`             scenes ${v.scene_craft ?? '—'}  velocity ${v.velocity ?? '—'}  comedy ${v.comedy ?? '—'}`);
+    lines.push(`             two-stroke ${v.two_stroke ?? '—'}`);
     if (v.reads_as_pastiche) lines.push('             ⚠ READS AS PASTICHE');
     lines.push('');
     lines.push(`strongest:   ${v.strongest}`);
@@ -129,144 +138,161 @@ function busy(button, on, label) {
   else if (button.dataset.label) { button.textContent = button.dataset.label; }
 }
 
-// ---- chat (SSE) ----------------------------------------------------------
-let sessionId = null;
-// Abort + generation guard for the in-flight stream. Reset while streaming
-// used to leave the old stream running: its late events silently resurrected
-// the cleared session id and repainted the stale directive over the fresh UI.
-let chatAbort = null;
-let chatGen = 0;
-const transcript = $('transcript');
+// ---- chat-like panels (SSE): the Correspondent and the Morgue -----------
+// Both panels speak the same SSE protocol, so one factory wires both. Each
+// panel keeps its own session id, abort controller, and generation counter.
+function wireChatPanel(cfg) {
+  let sessionId = null;
+  // Abort + generation guard for the in-flight stream. Reset while streaming
+  // used to leave the old stream running: its late events silently resurrected
+  // the cleared session id and repainted the stale directive over the fresh UI.
+  let abort = null;
+  let gen = 0;
+  const transcript = $(cfg.transcript);
 
-function addTurn(who, cls) {
-  const el = document.createElement('div');
-  el.className = `turn ${cls}`;
-  el.innerHTML = `<div class="who">${who}</div><div class="body"></div>`;
-  transcript.appendChild(el);
-  transcript.scrollTop = transcript.scrollHeight;
-  return el.querySelector('.body');
+  function addTurn(who, cls) {
+    const el = document.createElement('div');
+    el.className = `turn ${cls}`;
+    el.innerHTML = `<div class="who"></div><div class="body"></div>`;
+    el.querySelector('.who').textContent = who;
+    transcript.appendChild(el);
+    transcript.scrollTop = transcript.scrollHeight;
+    return el.querySelector('.body');
+  }
+
+  $(cfg.form).addEventListener('submit', async (event) => {
+    event.preventDefault();
+    const input = $(cfg.input);
+    const message = input.value.trim();
+    if (!message) return;
+    input.value = '';
+
+    addTurn('you', 'you').textContent = message;
+    const body = addTurn(cfg.botLabel, 'bot');
+    // Separate children for wire notes and reply text: streaming deltas append
+    // with textContent, which would destroy sibling nodes on a shared parent.
+    const notes = document.createElement('div');
+    notes.className = 'wire-notes';
+    const reply = document.createElement('div');
+    body.append(notes, reply);
+    if (cfg.directive) $(cfg.directive).textContent = '';
+
+    abort = new AbortController();
+    const myGen = ++gen;
+
+    let res;
+    try {
+      res = await fetch(cfg.endpoint, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message, session_id: sessionId, wire: $(cfg.wire).checked }),
+        signal: abort.signal,
+      });
+    } catch (err) {
+      if (myGen !== gen) return;   // aborted by reset — the wipe was the point
+      body.parentElement.classList.add('err');
+      reply.textContent = `connection failed: ${err.message}`;
+      return;
+    }
+
+    // Parse the SSE stream by hand — EventSource cannot issue POSTs.
+    const reader = res.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = '';
+
+    try {
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        if (myGen !== gen) { reader.cancel(); return; }  // superseded by reset
+        buffer += decoder.decode(value, { stream: true });
+
+        const frames = buffer.split('\n\n');
+        buffer = frames.pop();          // keep the trailing partial frame
+
+        for (const frame of frames) {
+          const evMatch = frame.match(/^event: (.+)$/m);
+          const dataMatch = frame.match(/^data: (.+)$/m);
+          if (!evMatch || !dataMatch) continue;
+          const payload = JSON.parse(dataMatch[1]);
+
+          switch (evMatch[1]) {
+            case 'session':
+              sessionId = payload.session_id;
+              break;
+            case 'delta':
+              reply.textContent += payload.text;
+              transcript.scrollTop = transcript.scrollHeight;
+              break;
+            case 'wire': {
+              const note = document.createElement('div');
+              note.className = 'wire-note';
+              note.textContent = payload.query
+                ? `checking the wire: ${payload.query}`
+                : 'checking the wire…';
+              notes.appendChild(note);
+              transcript.scrollTop = transcript.scrollHeight;
+              break;
+            }
+            case 'reset':
+              // A server-side fallback superseded everything streamed so far:
+              // the model that produced it went on to decline. Drop it —
+              // searches included, since they belonged to the abandoned turn.
+              reply.textContent = '';
+              notes.innerHTML = '';
+              break;
+            case 'error':
+              body.parentElement.classList.add('err');
+              reply.textContent += `\n[${payload.kind}: ${payload.message}]`;
+              break;
+            case 'done':
+              if (cfg.directive) $(cfg.directive).textContent = describeDirective(payload.directive);
+              renderSources(body, payload.sources);
+              transcript.scrollTop = transcript.scrollHeight;
+              break;
+          }
+        }
+      }
+    } catch (err) {
+      // A dropped connection mid-stream must not present a truncated reply as
+      // finished — the missing 'done' event was the only clue, and it's easy
+      // to miss a directive line that never updated.
+      if (myGen !== gen) return;
+      body.parentElement.classList.add('err');
+      reply.textContent += `\n[connection lost — this reply may be incomplete]`;
+    }
+  });
+
+  $(cfg.reset).addEventListener('click', async () => {
+    // Kill any in-flight stream first: its late events would resurrect the
+    // cleared session id and repaint the stale directive over the fresh UI.
+    gen++;
+    if (abort) abort.abort();
+    if (sessionId) await fetch(`/api/session/${sessionId}`, { method: 'DELETE' });
+    sessionId = null;
+    transcript.innerHTML = '';
+    if (cfg.directive) $(cfg.directive).textContent = '';
+  });
+
+  // Enter sends, Shift+Enter breaks the line.
+  $(cfg.input).addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      $(cfg.form).requestSubmit();
+    }
+  });
 }
 
-$('chat-form').addEventListener('submit', async (event) => {
-  event.preventDefault();
-  const input = $('chat-input');
-  const message = input.value.trim();
-  if (!message) return;
-  input.value = '';
-
-  addTurn('you', 'you').textContent = message;
-  const body = addTurn('correspondent', 'bot');
-  // Separate children for wire notes and reply text: streaming deltas append
-  // with textContent, which would destroy sibling nodes on a shared parent.
-  const notes = document.createElement('div');
-  notes.className = 'wire-notes';
-  const reply = document.createElement('div');
-  body.append(notes, reply);
-  $('chat-directive').textContent = '';
-
-  chatAbort = new AbortController();
-  const gen = ++chatGen;
-
-  let res;
-  try {
-    res = await fetch('/api/chat', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ message, session_id: sessionId, wire: $('chat-wire').checked }),
-      signal: chatAbort.signal,
-    });
-  } catch (err) {
-    if (gen !== chatGen) return;   // aborted by reset — the wipe was the point
-    body.parentElement.classList.add('err');
-    reply.textContent = `connection failed: ${err.message}`;
-    return;
-  }
-
-  // Parse the SSE stream by hand — EventSource cannot issue POSTs.
-  const reader = res.body.getReader();
-  const decoder = new TextDecoder();
-  let buffer = '';
-
-  try {
-  while (true) {
-    const { done, value } = await reader.read();
-    if (done) break;
-    if (gen !== chatGen) { reader.cancel(); return; }  // superseded by reset
-    buffer += decoder.decode(value, { stream: true });
-
-    const frames = buffer.split('\n\n');
-    buffer = frames.pop();          // keep the trailing partial frame
-
-    for (const frame of frames) {
-      const evMatch = frame.match(/^event: (.+)$/m);
-      const dataMatch = frame.match(/^data: (.+)$/m);
-      if (!evMatch || !dataMatch) continue;
-      const payload = JSON.parse(dataMatch[1]);
-
-      switch (evMatch[1]) {
-        case 'session':
-          sessionId = payload.session_id;
-          break;
-        case 'delta':
-          reply.textContent += payload.text;
-          transcript.scrollTop = transcript.scrollHeight;
-          break;
-        case 'wire': {
-          const note = document.createElement('div');
-          note.className = 'wire-note';
-          note.textContent = payload.query
-            ? `checking the wire: ${payload.query}`
-            : 'checking the wire…';
-          notes.appendChild(note);
-          transcript.scrollTop = transcript.scrollHeight;
-          break;
-        }
-        case 'reset':
-          // A server-side fallback superseded everything streamed so far: the
-          // model that produced it went on to decline. Drop it — searches
-          // included, since they belonged to the turn that was abandoned.
-          reply.textContent = '';
-          notes.innerHTML = '';
-          break;
-        case 'error':
-          body.parentElement.classList.add('err');
-          reply.textContent += `\n[${payload.kind}: ${payload.message}]`;
-          break;
-        case 'done':
-          $('chat-directive').textContent = describeDirective(payload.directive);
-          renderSources(body, payload.sources);
-          transcript.scrollTop = transcript.scrollHeight;
-          break;
-      }
-    }
-  }
-  } catch (err) {
-    // A dropped connection mid-stream must not present a truncated reply as
-    // finished — the missing 'done' event was the only clue, and it's easy
-    // to miss a directive line that never updated.
-    if (gen !== chatGen) return;
-    body.parentElement.classList.add('err');
-    reply.textContent += `\n[connection lost — this reply may be incomplete]`;
-  }
+wireChatPanel({
+  endpoint: '/api/chat', botLabel: 'correspondent',
+  form: 'chat-form', input: 'chat-input', transcript: 'transcript',
+  reset: 'chat-reset', wire: 'chat-wire', directive: 'chat-directive',
 });
 
-$('chat-reset').addEventListener('click', async () => {
-  // Kill any in-flight stream first: its late events would resurrect the
-  // cleared session id and repaint the stale directive over the fresh UI.
-  chatGen++;
-  if (chatAbort) chatAbort.abort();
-  if (sessionId) await fetch(`/api/session/${sessionId}`, { method: 'DELETE' });
-  sessionId = null;
-  transcript.innerHTML = '';
-  $('chat-directive').textContent = '';
-});
-
-// Enter sends, Shift+Enter breaks the line.
-$('chat-input').addEventListener('keydown', (e) => {
-  if (e.key === 'Enter' && !e.shiftKey) {
-    e.preventDefault();
-    $('chat-form').requestSubmit();
-  }
+wireChatPanel({
+  endpoint: '/api/morgue', botLabel: 'the morgue',
+  form: 'morgue-form', input: 'morgue-input', transcript: 'morgue-transcript',
+  reset: 'morgue-reset', wire: 'morgue-wire', directive: null,
 });
 
 // ---- compose -------------------------------------------------------------

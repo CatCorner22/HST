@@ -1,0 +1,168 @@
+# The Morgue's fact file: a short, sourced timeline of Hunter S. Thompson's life
+# and work. The Morgue answers dates and events from here first, and says so
+# when a question goes past what this file holds.
+#
+# Each entry:
+#   claim      one plain sentence
+#   status     verified | secondary (same meaning as in quotes.yaml)
+#   sources    https URLs where the claim was checked
+#   conflict   optional: where reputable sources disagree. The Morgue reports
+#              the conflict instead of choosing a side silently.
+#
+# `unverified_claims` lists claims in circulation, several from the ingested
+# prose-craft report, that this check could not confirm. The Morgue may
+# mention them only as unverified.
+#
+# Checked 20 November 2026.
+
+facts:
+  - id: born
+    claim: "Born Hunter Stockton Thompson on July 18, 1937, in Louisville, Kentucky."
+    status: verified
+    sources:
+      - https://britannica.com/biography/Hunter-S-Thompson
+      - https://www.irishtimes.com/news/freewheeling-founder-of-gonzo-journalism-1.418712
+    conflict: "Some references, including the New York Sun's 2005 obituary, give 1939; Gale's Contemporary Authors (on encyclopedia.com) notes the discrepancy."
+
+  - id: air-force
+    claim: "Served in the U.S. Air Force, where he wrote sports for the base newspaper, and left in 1958."
+    status: verified
+    sources:
+      - https://www.wnycstudios.org/story/131194-blazing-the-trail
+      - https://www.encyclopedia.com/arts/culture-magazines/thompson-hunter-s-1937-2005
+    conflict: "Gale gives his service as 1956 through 1958; Wikipedia's infobox gives 1955 through 1958."
+
+  - id: time-copy-boy
+    claim: "Worked as a copy boy at Time magazine in New York in 1958, where he typed out The Great Gatsby, A Farewell to Arms, and some Faulkner stories to learn their rhythm; Time fired him the following year."
+    status: verified
+    sources:
+      - https://www.openculture.com/2017/06/hunter-s-thompson-typed-out-the-great-gatsby-farewell-to-arms.html
+      - https://en.wikipedia.org/wiki/Hunter_S._Thompson
+
+  - id: hume-logan-letter
+    claim: "Wrote his 'way of life' letter to his friend Hume Logan on April 22, 1958, at age 20."
+    status: verified
+    sources:
+      - https://www.themarginalian.org/2013/11/04/hunter-s-thomspon-letters-of-note-advice/
+      - https://www.openculture.com/2015/02/hunter-s-thompson-life-coach-tips-for-finding-meaning-in-life.html
+    conflict: "Farnam Street and several reprints say he was 22. His July 1937 birth date makes him 20."
+
+  - id: ketchum
+    claim: "Published 'What Lured Hemingway to Ketchum?' in The National Observer on May 25, 1964; it was later collected in The Great Shark Hunt (1979)."
+    status: secondary
+    sources:
+      - https://kevinswoodshed.blogspot.com/2013_06_30_archive.html
+      - https://dynastyrankings.blogspot.com/2008/05/quote-of-day-may-7-2008-to-bring-order.html
+
+  - id: hells-angels
+    claim: "Hell's Angels: A Strange and Terrible Saga (Random House) came from more than a year spent with the club in California and launched his career as an author."
+    status: verified
+    sources:
+      - https://www.penguinrandomhouse.com/books/178190/hells-angels-by-hunter-s-thompson/9780679603313/
+      - https://Www.Wikipedia.org/wiki/Hell%27s_Angels_(book)
+    conflict: "The publisher dates the original edition to 1967; Gale and some Wikipedia citations give 1966."
+
+  - id: kentucky-derby
+    claim: "'The Kentucky Derby Is Decadent and Depraved' ran in Scanlan's Monthly in June 1970, illustrated by Ralph Steadman; it is the piece that first drew the label 'gonzo'."
+    status: verified
+    sources:
+      - https://Www.wikipedia.org/wiki/Gonzo_journalism
+      - https://niemanstoryboard.org/2013/11/12/whys-this-so-good-no-87-hunter-s-thompson-and-the-kentucky-derby/
+
+  - id: sheriff
+    claim: "Ran for sheriff of Pitkin County, Colorado, in 1970 on the Freak Power ticket, and lost."
+    status: verified
+    sources:
+      - https://www.espn.com.au/espn/news/story?id=2139349
+      - https://en.wikipedia.org/wiki/Hunter_S._Thompson
+    conflict: "Gale's Contemporary Authors lists the candidacy as 1968."
+
+  - id: las-vegas
+    claim: "Fear and Loathing in Las Vegas grew from two 1971 trips to Las Vegas with the attorney and activist Oscar Zeta Acosta, in March and April; Rolling Stone ran it in November 1971, and Random House published the book in 1972."
+    status: verified
+    sources:
+      - https://Www.Wikipedia.org/wiki/Fear_and_loathing
+      - https://lithub.com/on-the-legacy-of-hunter-s-thompson-and-gonzo-journalism/
+    conflict: "Britannica dates the book to 1971, the year of the magazine version."
+
+  - id: campaign-trail
+    claim: "Fear and Loathing: On the Campaign Trail '72 collected his Rolling Stone dispatches on the 1972 presidential campaign; Straight Arrow Books published it in 1973."
+    status: verified
+    sources:
+      - https://kirkusreviews.com/book-reviews/hunter-s-thompson/fear-and-loathing-campaign-trail/print
+      - https://journalism.nyu.edu/publishing/archives/portfolio/books/book346.html
+
+  - id: no-second-drafts
+    claim: "According to the historian Peter Richardson, Thompson never produced a second draft of any manuscript after Fear and Loathing in Las Vegas."
+    status: secondary
+    sources:
+      - https://lithub.com/on-the-legacy-of-hunter-s-thompson-and-gonzo-journalism/
+
+  - id: generation-of-swine
+    claim: "Generation of Swine (Summit Books, 1988) collected his San Francisco Examiner columns from September 1985 through November 1988."
+    status: verified
+    sources:
+      - https://wikipedia.com/wiki/Generation_of_Swine
+      - https://www.simonandschuster.net/books/Generation-of-Swine/Hunter-S-Thompson/9781439126899
+
+  - id: he-was-a-crook
+    claim: "'He Was a Crook,' his obituary for Richard Nixon, ran in Rolling Stone on June 16, 1994."
+    status: verified
+    sources:
+      - https://gatewayjr.org/reality-journalism-keeping-up-with-the-candidates/
+      - https://fromtheheartofeurope.eu/hunter-s-thompsons-obituary-of-richard-nixon/
+    conflict: "Some writers credit it to The Atlantic, whose online archive also hosts the piece."
+
+  - id: screwjack
+    claim: "Screwjack was privately printed in 1991; Simon & Schuster published the trade edition in December 2000."
+    status: verified
+    sources:
+      - https://www.simonandschuster.net/books/Screwjack/Hunter-S-Thompson/9781668022931
+      - https://en.wikipedia.com/wiki/Screw-Jack
+
+  - id: espn-page-2
+    claim: "Wrote the 'Hey, Rube' column for ESPN.com's Page 2; his column dated September 12, 2001, predicted an open-ended religious war."
+    status: verified
+    sources:
+      - https://www.espn.com/espn/page2/story?id=1250751
+
+  - id: kingdom-of-fear
+    claim: "Kingdom of Fear, a memoir, appeared in early 2003; he discussed it with Salon's John Glassie in an interview published February 3, 2003."
+    status: verified
+    sources:
+      - https://www.salon.com/2003/02/03/thompson_18/
+      - https://arthurmag.com/2006/05/30/maybe-this-country-does-prefer-tyranny-hunter-s-thompson-february-2003
+
+  - id: family
+    claim: "His son is Juan Thompson; in 2003 he married Anita Bejmuk, his longtime assistant."
+    status: verified
+    sources:
+      - https://www.nysun.com/article/obituaries-hunter-s-thompson-67-journalist-who-invented-gonzo
+      - https://www.dawn.com/news/amp/383303
+    conflict: "The New York Sun's obituary spells her maiden name Beymunk; other sources spell it Bejmuk."
+
+  - id: death
+    claim: "Died by suicide on February 20, 2005, at his home in Woody Creek, Colorado, at age 67."
+    status: verified
+    sources:
+      - https://britannica.com/biography/Hunter-S-Thompson
+      - https://vault.si.com/vault/2005/02/28/hunter-s-thompson
+      - https://www.irishtimes.com/news/freewheeling-founder-of-gonzo-journalism-1.418712
+
+  - id: ashes
+    claim: "On August 20, 2005, his ashes were fired from a cannon atop a 153-foot tower shaped like his gonzo fist, at his Woody Creek home; Johnny Depp paid for the tower."
+    status: verified
+    sources:
+      - https://www.npr.org/2005/08/21/4809021/a-last-blast-for-hunter-thompson
+      - https://www.rollingstone.com/culture/culture-news/football-season-is-over-hunter-s-thompson-1937-2005-171034/2/
+      - https://www.cbsnews.com/news/depp-springing-for-gonzo-ash-blast
+
+unverified_claims:
+  - claim: "He rewrote Fear and Loathing in Las Vegas five complete times."
+    origin: "The ingested prose-craft report, citing a single 1975 University of Georgia video."
+  - claim: "He earned $51 a week as a Time copy boy."
+    origin: "One blog post; no reputable source found."
+  - claim: "The San Francisco Examiner cut his word budget by more than 80% after 1985."
+    origin: "The ingested prose-craft report, with no citation or baseline."
+  - claim: "In 1967 he counted nine attribution hedges in fourteen New York Times paragraphs."
+    origin: "The ingested prose-craft report, with no citation."
